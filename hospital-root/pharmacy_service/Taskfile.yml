@@ -1,0 +1,21 @@
+version: '3'
+
+tasks:
+  setup:
+    desc: Install dependencies
+    cmds:
+      - pipenv install --dev
+      
+  proto:
+    desc: Generate gRPC stubs
+    cmds:
+      - mkdir -p generated
+      - pipenv run python -m grpc_tools.protoc -I../protos --python_out=./generated --grpc_python_out=./generated ../protos/pharmacy.proto
+      - touch generated/__init__.py
+      # Fix relative imports in generated code
+      - pipenv run sed -i 's/import pharmacy_pb2 as pharmacy__pb2/from . import pharmacy_pb2 as pharmacy__pb2/' generated/pharmacy_pb2_grpc.py
+
+  run:
+    desc: Run the gRPC server locally
+    cmds:
+      - pipenv run python app/main.py

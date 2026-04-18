@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package pharmacy;
+
+service PharmacyService {
+  rpc GetStockLevel (StockRequest) returns (StockResponse);
+  rpc DispenseMedicine (DispenseRequest) returns (DispenseResponse);
+  rpc AddStock (AddStockRequest) returns (AddStockResponse);
+}
+
+message StockRequest {
+  string pharmaceutical_id = 1; // Or code
+}
+
+message StockResponse {
+  string pharmaceutical_id = 1;
+  int32 total_available_quantity = 2;
+  bool is_critical = 3;
+}
+
+message DispenseRequest {
+  string pharmaceutical_id = 1;
+  int32 quantity = 2;
+  string patient_id = 3;
+}
+
+message DispenseResponse {
+  bool success = 1;
+  string message = 2;
+  int32 quantity_dispensed = 3;
+}
+
+message AddStockRequest {
+  string pharmaceutical_id = 1;
+  string lot_code = 2;
+  string expiry_date = 3; // Format YYYY-MM-DD
+  int32 quantity = 4;
+  float unit_cost = 5;
+}
+
+message AddStockResponse {
+  bool success = 1;
+  string lot_id = 2;
+}

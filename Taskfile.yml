@@ -1,0 +1,61 @@
+version: '3'
+
+dotenv: ['./hospital-root/.env']
+
+includes:
+  patient:
+    taskfile: ./hospital-root/patient_service/Taskfile.yml
+    dir: ./hospital-root/patient_service
+  clinical:
+    taskfile: ./hospital-root/clinical_service/Taskfile.yml
+    dir: ./hospital-root/clinical_service
+  aggregator:
+    taskfile: ./hospital-root/aggregator_service/Taskfile.yml
+    dir: ./hospital-root/aggregator_service
+
+tasks:
+  up:
+    desc: "Starts the infrastructure and all services in detached mode"
+    dir: ./hospital-root
+    cmds:
+      - docker-compose up -d
+
+  down:
+    desc: "Stops and removes all containers and volumes"
+    dir: ./hospital-root
+    cmds:
+      - docker-compose down -v
+
+  logs:
+    desc: "Tails logs for all services"
+    dir: ./hospital-root
+    cmds:
+      - docker-compose logs -f
+
+  migrate:all:
+    desc: "Calls the migrate task in every sub-folder sequentially"
+    cmds:
+      - task: patient:migrate
+      - task: clinical:migrate
+
+  test:all:
+    desc: "Triggers pytest across all microservices"
+    cmds:
+      - task: patient:test
+      - task: clinical:test
+      - task: aggregator:test
+
+  build:all:
+    desc: "Iterates through services and runs external pack build commands"
+    cmds:
+      - task: build:pack
+        vars: { SVC: "patient_service", IMG: "hms-patient-service:latest" }
+      - task: build:pack
+        vars: { SVC: "clinical_service", IMG: "hms-clinical-service:latest" }
+      - task: build:pack
+        vars: { SVC: "aggregator_service", IMG: "hms-aggregator-service:latest" }
+
+  build:pack:
+    internal: true
+    cmds:
+      - pack build {{.IMG}} --path ./hospital-root/{{.SVC}} --builder paketobuildpacks/builder:base
