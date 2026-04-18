@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package patient;
+
+service PatientService {
+  rpc GetPatientById(PatientRequest) returns (PatientResponse);
+  rpc CreatePatient(CreatePatientRequest) returns (PatientResponse);
+  rpc ListPatients(ListRequest) returns (PatientListResponse);
+}
+
+enum Sex {
+  UNKNOWN = 0;
+  MALE = 1;
+  FEMALE = 2;
+  OTHER = 3;
+}
+
+message PatientRequest {
+  string id = 1;
+}
+
+message CreatePatientRequest {
+  string code = 1;
+  string full_name = 2;
+  string birth_date = 3;
+  Sex sex = 4;
+  string blood_type = 5;
+  bool is_insured = 6;
+}
+
+message ListRequest {
+  int32 limit = 1;
+  int32 offset = 2;
+}
+
+message PatientResponse {
+  string id = 1;
+  string code = 2;
+  string full_name = 3;
+  string birth_date = 4;
+  Sex sex = 5;
+  string blood_type = 6;
+  bool is_insured = 7;
+}
+
+message PatientListResponse {
+  repeated PatientResponse patients = 1;
+  int32 total_count = 2;
+}

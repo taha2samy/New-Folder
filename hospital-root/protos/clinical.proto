@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package clinical;
+
+service ClinicalEncounterService {
+  rpc CreateOPDVisit(OPDVisitRequest) returns (EncounterResponse);
+  rpc StartAdmission(AdmissionRequest) returns (EncounterResponse);
+  rpc CompleteEncounter(CompleteRequest) returns (EncounterResponse);
+  rpc GetPatientEncounters(PatientEncountersRequest) returns (stream EncounterResponse);
+}
+
+message Vitals {
+  double blood_pressure_systolic = 1;
+  double blood_pressure_diastolic = 2;
+  double heart_rate = 3;
+  double temperature_celsius = 4;
+}
+
+message Procedure {
+  string procedure_code = 1;
+  string description = 2;
+}
+
+message OPDVisitRequest {
+  string patient_id = 1;
+  string doctor_id = 2;
+  Vitals vitals = 3;
+  string notes = 4;
+}
+
+message AdmissionRequest {
+  string patient_id = 1;
+  string doctor_id = 2;
+  string ward = 3;
+  string bed_number = 4;
+}
+
+message CompleteRequest {
+  string encounter_id = 1;
+  repeated string diagnosis_codes = 2;
+  repeated Procedure procedures = 3;
+  string discharge_notes = 4;
+}
+
+message PatientEncountersRequest {
+  string patient_id = 1;
+}
+
+message EncounterResponse {
+  string encounter_id = 1;
+  string patient_id = 2;
+  string doctor_id = 3;
+  string status = 4; // e.g. ACTIVE, COMPLETED, SUSPENDED
+  string encounter_type = 5; // OPD or ADMISSION
+  int64 created_at = 6;
+  repeated string diagnosis_codes = 7;
+}
