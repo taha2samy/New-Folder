@@ -127,3 +127,34 @@ class PharmacyServiceHandler(pharmacy_pb2_grpc.PharmacyServiceServicer):
         except Exception as e:
             logger.error(f"DispenseMedicine Error: {e}")
             await context.abort(grpc.StatusCode.INTERNAL, "Error dispensing medicine.")
+
+    async def GetPatientMedications(self, request, context):
+        user_id, role, token = self._extract_context(context)
+        try:
+            async with self.db_session_factory() as session:
+                repo = PharmacyRepository(session)
+                movements = await repo.get_patient_medications(request.patient_id)
+                
+                records = []
+                for mv in movements: # SQLAlchemy lazy loading concerns: usually we should join eager load 'lot'
+                    # But since we only need the lot_id directly from StockMovement and pharmaceutical_id is in lot..
+                    # Let's assume we ensure lot eager loading or just use lot_id. Wait, MedicalLot ID is in movement.lot_id.
+                    # We might need to fetch the pharmaceutical_id via eager load if we want it, but let's query it or extract if eager loaded.
+                    # This simplest way:
+                    records.append(
+                        pharmacy_pb2.MedicationRecord(
+                            pharmaceutical_id=mv.lot.pharmaceutical_id if mv.lot else "unknown",
+                            lot_id=mv.lot_id,
+                            quantity=mv.quantity,
+                            date=int(mv.date.timestamp()) if mv.date else 0
+                        )
+                    )
+                    
+                return pharmacy_pb2.PatientMedicationsResponse(
+                    patient_id=request.patient_id,
+                    medications=records
+                )
+        except grpc.RpcError: raise
+        except Exception as e:
+            logger.error(f"GetPatientMedications Error: {e}")
+            await context.abort(grpc.StatusCode.INTERNAL, "Error retrieving patient medications.")

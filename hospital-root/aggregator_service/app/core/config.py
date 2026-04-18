@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     """
     PATIENT_SERVICE_ADDR: str = "localhost:50051"
     CLINICAL_SERVICE_ADDR: str = "localhost:50052"
+    PHARMACY_SERVICE_ADDR: str = "localhost:50053"
     JWT_SECRET_KEY: str = "super_secret_jwt_key_override_in_prod"
     JWT_ALGORITHM: str = "HS256"
 

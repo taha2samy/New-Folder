@@ -120,3 +120,14 @@ class PharmacyRepository:
             raise InadequateStockError("Critical error during dispensing calculation.")
 
         return dispensed_details
+
+    async def get_patient_medications(self, patient_id: str) -> list[StockMovement]:
+        from sqlalchemy.orm import joinedload
+        result = await self._session.execute(
+            select(StockMovement)
+            .options(joinedload(StockMovement.lot))
+            .where(StockMovement.patient_id == patient_id)
+            .where(StockMovement.type == MovementType.DISCHARGE)
+            .order_by(StockMovement.date.desc())
+        )
+        return result.scalars().all()

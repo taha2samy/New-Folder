@@ -21,6 +21,20 @@ class PatientType:
     is_insured: bool
 
 @strawberry.type
+class MedicationType:
+    pharmaceutical_id: str
+    lot_id: str
+    quantity: int
+    date: int
+
+@strawberry.type
 class PatientSummary:
     patient: Optional[PatientType]
     encounters: Optional[List[EncounterType]]
+    medications: Optional[List[MedicationType]]
+
+@strawberry.type
+class DispenseResponse:
+    success: bool
+    message: str
+    quantity_dispensed: int
