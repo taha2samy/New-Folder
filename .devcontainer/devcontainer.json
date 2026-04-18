@@ -4,6 +4,9 @@
     "dockerfile": "Dockerfile",
     "context": ".."
   },
+  "containerEnv": {
+    "DOCKER_API_VERSION": "1.41"
+  },
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {
       "version": "latest",
@@ -16,11 +19,9 @@
       "upgradePackages": true
     }
   },
-  
   "mounts": [
     "source=hms-devcontainer-bashhistory,target=/commandhistory,type=volume"
   ],
-
   "customizations": {
     "vscode": {
       "settings": {
@@ -41,14 +42,20 @@
       ]
     }
   },
-
-  "forwardPorts": [8000, 50051, 50052, 50053, 5432, 9092, 19092],
+  "forwardPorts": [
+    8000,
+    50051,
+    50052,
+    50053,
+    5432,
+    9092,
+    19092
+  ],
   "portsAttributes": {
     "8000": {
       "label": "GraphQL API BFF",
       "onAutoForward": "notify"
     }
   },
-
   "postCreateCommand": "echo 'export PROMPT_COMMAND=\"history -a\"' >> ~/.bashrc && pipenv install --dev  || echo 'pipenv skipped'"
 }
