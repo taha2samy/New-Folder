@@ -9,12 +9,14 @@ includes:
   clinical:
     taskfile: ./hospital-root/clinical_service/Taskfile.yml
     dir: ./hospital-root/clinical_service
+  pharmacy:
+    taskfile: ./hospital-root/pharmacy_service/Taskfile.yml
+    dir: ./hospital-root/pharmacy_service
   aggregator:
     taskfile: ./hospital-root/aggregator_service/Taskfile.yml
     dir: ./hospital-root/aggregator_service
 
 tasks:
-
   generate:all:
     desc: Regenerate all gRPC definitions across all microservices
     cmds:
@@ -22,58 +24,36 @@ tasks:
       - task: clinical:proto
       - task: pharmacy:proto
       # Aggregator has its own generation that we haven't included yet, let's just run it manually here
-      - mkdir -p aggregator_service/generated
-      - pipenv run --cwd aggregator_service python -m grpc_tools.protoc -I./protos --python_out=./aggregator_service/generated --grpc_python_out=./aggregator_service/generated ./protos/patient.proto ./protos/clinical.proto ./protos/pharmacy.proto
-      - touch aggregator_service/generated/__init__.py
-      - pipenv run --cwd aggregator_service sed -i 's/import patient_pb2 as patient__pb2/from . import patient_pb2 as patient__pb2/' aggregator_service/generated/patient_pb2_grpc.py
-      - pipenv run --cwd aggregator_service sed -i 's/import clinical_pb2 as clinical__pb2/from . import clinical_pb2 as clinical__pb2/' aggregator_service/generated/clinical_pb2_grpc.py
-      - pipenv run --cwd aggregator_service sed -i 's/import pharmacy_pb2 as pharmacy__pb2/from . import pharmacy_pb2 as pharmacy__pb2/' aggregator_service/generated/pharmacy_pb2_grpc.py
+      - mkdir -p ./hospital-root/aggregator_service/generated
+      - pipenv run --cwd ./hospital-root/aggregator_service python -m grpc_tools.protoc -I./hospital-root/protos --python_out=./hospital-root/aggregator_service/generated --grpc_python_out=./hospital-root/aggregator_service/generated ./hospital-root/protos/patient.proto ./hospital-root/protos/clinical.proto ./hospital-root/protos/pharmacy.proto
+      - touch ./hospital-root/aggregator_service/generated/__init__.py
+      - pipenv run --cwd ./hospital-root/aggregator_service sed -i 's/import patient_pb2 as patient__pb2/from . import patient_pb2 as patient__pb2/' ./hospital-root/aggregator_service/generated/patient_pb2_grpc.py
+      - pipenv run --cwd ./hospital-root/aggregator_service sed -i 's/import clinical_pb2 as clinical__pb2/from . import clinical_pb2 as clinical__pb2/' ./hospital-root/aggregator_service/generated/clinical_pb2_grpc.py
+      - pipenv run --cwd ./hospital-root/aggregator_service sed -i 's/import pharmacy_pb2 as pharmacy__pb2/from . import pharmacy_pb2 as pharmacy__pb2/' ./hospital-root/aggregator_service/generated/pharmacy_pb2_grpc.py
 
   migrate:all:
-    desc: Run standard migrations across all services 
+    desc: Run standard migrations across all services sequentially
     cmds:
-      - pipenv run --cwd patient_service alembic upgrade head
-      - pipenv run --cwd clinical_service alembic upgrade head
-      - pipenv run --cwd pharmacy_service alembic upgrade head
-
-  up:
-    desc: "Starts the infrastructure and all services in detached mode"
-    dir: ./hospital-root
-    cmds:
-      - docker-compose up -d
-
-  down:
-    desc: "Stops and removes all containers and volumes"
-    dir: ./hospital-root
-    cmds:
-      - docker-compose down -v
-
-  logs:
-    desc: "Tails logs for all services"
-    dir: ./hospital-root
-    cmds:
-      - docker-compose logs -f
-
-  migrate:all:
-    desc: "Calls the migrate task in every sub-folder sequentially"
-    cmds:
-      - task: patient:migrate
-      - task: clinical:migrate
+      - pipenv run --cwd ./hospital-root/patient_service alembic upgrade head
+      - pipenv run --cwd ./hospital-root/clinical_service alembic upgrade head
+      - pipenv run --cwd ./hospital-root/pharmacy_service alembic upgrade head
 
   test:all:
-    desc: "Triggers pytest across all microservices"
+    desc: Triggers pytest across all microservices
     cmds:
       - task: patient:test
       - task: clinical:test
       - task: aggregator:test
 
   build:all:
-    desc: "Iterates through services and runs external pack build commands"
+    desc: Iterates through services and runs external pack build commands
     cmds:
       - task: build:pack
         vars: { SVC: "patient_service", IMG: "hms-patient-service:latest" }
       - task: build:pack
         vars: { SVC: "clinical_service", IMG: "hms-clinical-service:latest" }
+      - task: build:pack
+        vars: { SVC: "pharmacy_service", IMG: "hms-pharmacy-service:latest" }
       - task: build:pack
         vars: { SVC: "aggregator_service", IMG: "hms-aggregator-service:latest" }
 
@@ -81,3 +61,21 @@ tasks:
     internal: true
     cmds:
       - pack build {{.IMG}} --path ./hospital-root/{{.SVC}} --builder paketobuildpacks/builder:base
+
+  up:
+    desc: Starts the infrastructure and all services in detached mode
+    dir: ./hospital-root
+    cmds:
+      - docker-compose up -d
+
+  down:
+    desc: Stops and removes all containers and volumes
+    dir: ./hospital-root
+    cmds:
+      - docker-compose down -v
+
+  logs:
+    desc: Tails logs for all services
+    dir: ./hospital-root
+    cmds:
+      - docker-compose logs -f
