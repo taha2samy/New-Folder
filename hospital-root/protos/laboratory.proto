@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package laboratory;
+
+// Enumeration of possible states for a laboratory test request.
+enum TestStatus {
+  PENDING   = 0;
+  COMPLETED = 1;
+  CANCELLED = 2;
+}
+
+service LaboratoryService {
+  // Initialises a new laboratory test request for a patient.
+  rpc CreateLabRequest       (CreateLabRequestRequest)    returns (LabRequestResponse);
+  // Records the technical results of a completed test.
+  rpc SubmitResults          (SubmitResultsRequest)       returns (LabResultResponse);
+  // Returns all historical test requests and their results for a patient.
+  rpc GetPatientLabHistory   (PatientLabHistoryRequest)   returns (PatientLabHistoryResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Request / Response Messages
+// ---------------------------------------------------------------------------
+
+message CreateLabRequestRequest {
+  string patient_id   = 1;
+  string exam_type_id = 2;
+  string material     = 3; // Sample material (e.g. Blood, Urine, Tissue)
+  string admission_id = 4; // Optional: linked in-patient admission identifier
+}
+
+message LabRequestResponse {
+  string      request_id   = 1;
+  string      patient_id   = 2;
+  string      exam_type_id = 3;
+  string      material     = 4;
+  TestStatus  status       = 5;
+  int64       request_date = 6; // Unix timestamp (UTC)
+}
+
+message SubmitResultsRequest {
+  string request_id     = 1;
+  string description    = 2; // Human-readable interpretation of the result
+  string value          = 3; // Result value (supports text, boolean flag list, or single numeric)
+  string technician_id  = 4;
+}
+
+message LabResultResponse {
+  string result_id     = 1;
+  string request_id    = 2;
+  string description   = 3;
+  string value         = 4;
+  string technician_id = 5;
+  int64  result_date   = 6; // Unix timestamp (UTC)
+}
+
+message PatientLabHistoryRequest {
+  string patient_id = 1;
+}
+
+message LabHistoryItem {
+  string     request_id   = 1;
+  string     exam_type_id = 2;
+  string     material     = 3;
+  TestStatus status       = 4;
+  int64      request_date = 5;
+  // Result is present only when status == COMPLETED.
+  string     result_value       = 6;
+  string     result_description = 7;
+  int64      result_date        = 8;
+}
+
+message PatientLabHistoryResponse {
+  string              patient_id = 1;
+  repeated LabHistoryItem items  = 2;
+}

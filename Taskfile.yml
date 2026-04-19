@@ -15,6 +15,12 @@ includes:
   pharmacy:
     taskfile: ./hospital-root/pharmacy_service/Taskfile.yml
     dir: ./hospital-root/pharmacy_service
+  laboratory:
+    taskfile: ./hospital-root/laboratory_service/Taskfile.yml
+    dir: ./hospital-root/laboratory_service
+  master_data:
+    taskfile: ./hospital-root/master_data_service/Taskfile.yml
+    dir: ./hospital-root/master_data_service
   aggregator:
     taskfile: ./hospital-root/aggregator_service/Taskfile.yml
     dir: ./hospital-root/aggregator_service
@@ -23,23 +29,29 @@ tasks:
   generate:all:
     desc: Regenerate all gRPC definitions across all microservices
     cmds:
+      - task: master_data:proto
       - task: patient:proto
       - task: clinical:proto
       - task: pharmacy:proto
-      # Aggregator has its own generation that we haven't included yet, let's just run it manually here
+      - task: laboratory:proto
+      # Aggregator: generate stubs for all downstream protos and fix relative imports.
       - mkdir -p ./hospital-root/aggregator_service/generated
-      - pipenv run --cwd ./hospital-root/aggregator_service python -m grpc_tools.protoc -I./hospital-root/protos --python_out=./hospital-root/aggregator_service/generated --grpc_python_out=./hospital-root/aggregator_service/generated ./hospital-root/protos/patient.proto ./hospital-root/protos/clinical.proto ./hospital-root/protos/pharmacy.proto
+      - pipenv run --cwd ./hospital-root/aggregator_service python -m grpc_tools.protoc -I./hospital-root/protos --python_out=./hospital-root/aggregator_service/generated --grpc_python_out=./hospital-root/aggregator_service/generated ./hospital-root/protos/patient.proto ./hospital-root/protos/clinical.proto ./hospital-root/protos/pharmacy.proto ./hospital-root/protos/laboratory.proto ./hospital-root/protos/master_data.proto
       - touch ./hospital-root/aggregator_service/generated/__init__.py
       - pipenv run --cwd ./hospital-root/aggregator_service sed -i 's/import patient_pb2 as patient__pb2/from . import patient_pb2 as patient__pb2/' ./hospital-root/aggregator_service/generated/patient_pb2_grpc.py
       - pipenv run --cwd ./hospital-root/aggregator_service sed -i 's/import clinical_pb2 as clinical__pb2/from . import clinical_pb2 as clinical__pb2/' ./hospital-root/aggregator_service/generated/clinical_pb2_grpc.py
       - pipenv run --cwd ./hospital-root/aggregator_service sed -i 's/import pharmacy_pb2 as pharmacy__pb2/from . import pharmacy_pb2 as pharmacy__pb2/' ./hospital-root/aggregator_service/generated/pharmacy_pb2_grpc.py
+      - pipenv run --cwd ./hospital-root/aggregator_service sed -i 's/import laboratory_pb2 as laboratory__pb2/from . import laboratory_pb2 as laboratory__pb2/' ./hospital-root/aggregator_service/generated/laboratory_pb2_grpc.py
+      - pipenv run --cwd ./hospital-root/aggregator_service sed -i 's/import master_data_pb2 as master__data__pb2/from . import master_data_pb2 as master__data__pb2/' ./hospital-root/aggregator_service/generated/master_data_pb2_grpc.py
 
   migrate:all:
     desc: Run standard migrations across all services sequentially
     cmds:
+      - pipenv run --cwd ./hospital-root/master_data_service alembic upgrade head
       - pipenv run --cwd ./hospital-root/patient_service alembic upgrade head
       - pipenv run --cwd ./hospital-root/clinical_service alembic upgrade head
       - pipenv run --cwd ./hospital-root/pharmacy_service alembic upgrade head
+      - pipenv run --cwd ./hospital-root/laboratory_service alembic upgrade head
 
   test:all:
     desc: Triggers pytest across all microservices
@@ -52,11 +64,15 @@ tasks:
     desc: Iterates through services and runs external pack build commands
     cmds:
       - task: build:pack
+        vars: { SVC: "master_data_service", IMG: "hms-master-data-service:latest" }
+      - task: build:pack
         vars: { SVC: "patient_service", IMG: "hms-patient-service:latest" }
       - task: build:pack
         vars: { SVC: "clinical_service", IMG: "hms-clinical-service:latest" }
       - task: build:pack
         vars: { SVC: "pharmacy_service", IMG: "hms-pharmacy-service:latest" }
+      - task: build:pack
+        vars: { SVC: "laboratory_service", IMG: "hms-laboratory-service:latest" }
       - task: build:pack
         vars: { SVC: "aggregator_service", IMG: "hms-aggregator-service:latest" }
 

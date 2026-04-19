@@ -1,0 +1,26 @@
+version: '3'
+
+tasks:
+  setup:
+    desc: Install all service dependencies via Pipenv
+    cmds:
+      - pipenv install --dev
+
+  proto:
+    desc: Generate gRPC stubs from laboratory.proto
+    cmds:
+      - mkdir -p generated
+      - pipenv run python -m grpc_tools.protoc -I../protos --python_out=./generated --grpc_python_out=./generated ../protos/laboratory.proto
+      - touch generated/__init__.py
+      # Rewrite absolute import to relative import in generated stub
+      - pipenv run sed -i 's/import laboratory_pb2 as laboratory__pb2/from . import laboratory_pb2 as laboratory__pb2/' generated/laboratory_pb2_grpc.py
+
+  migrate:
+    desc: Apply Alembic database migrations
+    cmds:
+      - pipenv run alembic upgrade head
+
+  run:
+    desc: Start the laboratory gRPC server locally
+    cmds:
+      - pipenv run python app/main.py

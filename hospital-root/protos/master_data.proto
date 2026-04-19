@@ -1,0 +1,129 @@
+syntax = "proto3";
+
+package master_data;
+
+// Enumeration of fixed laboratory exam procedure types.
+enum ProcedureType {
+  PROCEDURE_TYPE_UNSPECIFIED = 0;
+  SINGLE_VALUE               = 1; // Single numeric/text result
+  MULTIPLE_BOOLEAN           = 2; // Set of boolean flags
+  MANUAL_TEXT                = 3; // Free-form narrative
+}
+
+service MasterDataService {
+  // Returns the complete list of hospital wards/departments.
+  rpc GetWards          (EmptyRequest)         returns (WardsResponse);
+  // Returns a searchable list of ICD diagnosis codes.
+  rpc GetDiseases       (DiseaseQuery)         returns (DiseasesResponse);
+  // Returns laboratory examination type definitions.
+  rpc GetExamTypes      (EmptyRequest)         returns (ExamTypesResponse);
+  // Returns surgical/interventional operation type definitions.
+  rpc GetOperationTypes (EmptyRequest)         returns (OperationTypesResponse);
+  // Returns registered pharmaceutical suppliers.
+  rpc GetSuppliers      (EmptyRequest)         returns (SuppliersResponse);
+  // Creates or updates a Ward record. Restricted to the Admin role.
+  rpc UpsertWard        (UpsertWardRequest)    returns (WardMessage);
+  // Creates or updates a Disease record. Restricted to the Admin role.
+  rpc UpsertDisease     (UpsertDiseaseRequest) returns (DiseaseMessage);
+}
+
+// ---------------------------------------------------------------------------
+// Shared / Utility Messages
+// ---------------------------------------------------------------------------
+
+message EmptyRequest {}
+
+// ---------------------------------------------------------------------------
+// Ward Messages
+// ---------------------------------------------------------------------------
+
+message WardMessage {
+  string ward_id    = 1;
+  string code       = 2;
+  string name       = 3;
+  int32  beds_count = 4;
+  bool   is_opd     = 5; // True when this ward operates as an Out-Patient Department
+}
+
+message WardsResponse {
+  repeated WardMessage wards = 1;
+}
+
+message UpsertWardRequest {
+  string ward_id    = 1; // Empty string denotes a creation request
+  string code       = 2;
+  string name       = 3;
+  int32  beds_count = 4;
+  bool   is_opd     = 5;
+}
+
+// ---------------------------------------------------------------------------
+// Disease Messages
+// ---------------------------------------------------------------------------
+
+message DiseaseMessage {
+  string disease_id   = 1;
+  string code         = 2;
+  string description  = 3;
+  string disease_type = 4; // FK reference to DiseaseType code
+}
+
+message DiseasesResponse {
+  repeated DiseaseMessage diseases = 1;
+}
+
+message DiseaseQuery {
+  string search_term = 1; // Optional; empty string returns all diseases
+}
+
+message UpsertDiseaseRequest {
+  string disease_id   = 1; // Empty string denotes a creation request
+  string code         = 2;
+  string description  = 3;
+  string disease_type = 4;
+}
+
+// ---------------------------------------------------------------------------
+// ExamType Messages
+// ---------------------------------------------------------------------------
+
+message ExamTypeMessage {
+  string        exam_type_id   = 1;
+  string        code           = 2;
+  string        description    = 3;
+  ProcedureType procedure_type = 4;
+}
+
+message ExamTypesResponse {
+  repeated ExamTypeMessage exam_types = 1;
+}
+
+// ---------------------------------------------------------------------------
+// OperationType Messages
+// ---------------------------------------------------------------------------
+
+message OperationTypeMessage {
+  string operation_type_id = 1;
+  string code              = 2;
+  string description       = 3;
+  bool   is_major          = 4; // True for major (surgical) operations
+}
+
+message OperationTypesResponse {
+  repeated OperationTypeMessage operation_types = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Supplier Messages
+// ---------------------------------------------------------------------------
+
+message SupplierMessage {
+  string supplier_id   = 1;
+  string name          = 2;
+  string address       = 3;
+  string contact_info  = 4;
+}
+
+message SuppliersResponse {
+  repeated SupplierMessage suppliers = 1;
+}

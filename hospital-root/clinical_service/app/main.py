@@ -12,6 +12,7 @@ from app.grpc.handler import ClinicalEncounterServiceHandler
 from app.events.producers import EncounterEventProducer
 from app.events.consumers import PatientEventConsumer
 from app.grpc_clients.patient_client import PatientServiceClient
+from app.grpc_clients.master_data_client import MasterDataClient
 from app.domain.models import Base
 
 logging.basicConfig(level=logging.INFO)
@@ -28,6 +29,7 @@ async def serve():
     producer = EncounterEventProducer()
     consumer = PatientEventConsumer(async_session_factory)
     client = PatientServiceClient()
+    master_data_client = MasterDataClient()
 
     try:
         await producer.start()
@@ -41,7 +43,8 @@ async def serve():
     handler = ClinicalEncounterServiceHandler(
         db_session_factory=async_session_factory,
         event_producer=producer,
-        patient_client=client
+        patient_client=client,
+        master_data_client=master_data_client
     )
     
     clinical_pb2_grpc.add_ClinicalEncounterServiceServicer_to_server(handler, server)

@@ -3,12 +3,61 @@
 import strawberry
 from typing import List, Optional
 
+
 @strawberry.type
 class EncounterType:
     encounter_id: str
     status: str
     encounter_type: str
     diagnosis_codes: List[str]
+
+@strawberry.type
+class DiagnosticType:
+    id: str
+    disease_code: str
+    diagnosed_at: str
+    notes: str
+
+# ---------------------------------------------------------------------------
+# Master Data / Reference Types
+# ---------------------------------------------------------------------------
+
+@strawberry.type
+class WardType:
+    id: str
+    code: str
+    name: str
+    beds_count: int
+    is_opd: bool
+
+@strawberry.type
+class DiseaseRefType:
+    id: str
+    code: str
+    description: str
+    disease_type: str
+
+@strawberry.type
+class ExamTypeRef:
+    id: str
+    code: str
+    description: str
+    # Maps directly to Enum integer value on the wire
+    procedure_type: int
+
+@strawberry.type
+class OperationTypeRef:
+    id: str
+    code: str
+    description: str
+    is_major: bool
+
+@strawberry.type
+class ReferenceDataSummary:
+    wards: List[WardType]
+    diseases: List[DiseaseRefType]
+    exam_types: List[ExamTypeRef]
+    operation_types: List[OperationTypeRef]
 
 @strawberry.type
 class PatientType:
@@ -28,10 +77,22 @@ class MedicationType:
     date: int
 
 @strawberry.type
+class LabResultType:
+    """Represents a single laboratory test request and its result (when available)."""
+    id:                 str
+    test_name:          str           # Maps to exam_type_id
+    status:             str
+    date:               int           # Unix timestamp of the request
+    result_value:       Optional[str]
+    result_description: Optional[str]
+
+
+@strawberry.type
 class PatientSummary:
-    patient: Optional[PatientType]
-    encounters: Optional[List[EncounterType]]
+    patient:     Optional[PatientType]
+    encounters:  Optional[List[EncounterType]]
     medications: Optional[List[MedicationType]]
+    lab_results: Optional[List[LabResultType]]
 
 @strawberry.type
 class DispenseResponse:

@@ -101,6 +101,48 @@ services:
       event-broker:
         condition: service_healthy
 
+  laboratory-service:
+    build:
+      context: ./laboratory_service
+    env_file:
+      - .env
+    environment:
+      - LABORATORY_SVC_DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/laboratory_db
+      - LABORATORY_SVC_KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
+      - LABORATORY_SVC_JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - LABORATORY_SVC_JWT_ALGORITHM=${JWT_ALGORITHM}
+      - LABORATORY_SVC_GRPC_PORT=50054
+    ports:
+      - "50054:50054"
+    networks:
+      - hms_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      event-broker:
+        condition: service_healthy
+
+  master-data-service:
+    build:
+      context: ./master_data_service
+    env_file:
+      - .env
+    environment:
+      - MASTER_DATA_SVC_DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/reference_db
+      - MASTER_DATA_SVC_KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
+      - MASTER_DATA_SVC_JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - MASTER_DATA_SVC_JWT_ALGORITHM=${JWT_ALGORITHM}
+      - MASTER_DATA_SVC_GRPC_PORT=50055
+    ports:
+      - "50055:50055"
+    networks:
+      - hms_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      event-broker:
+        condition: service_healthy
+
   aggregator-service:
     build:
       context: ./aggregator_service
@@ -111,6 +153,8 @@ services:
       - AGGREGATOR_SVC_PATIENT_SERVICE_ADDR=patient-service:50051
       - AGGREGATOR_SVC_CLINICAL_SERVICE_ADDR=clinical-service:50052
       - AGGREGATOR_SVC_PHARMACY_SERVICE_ADDR=pharmacy-service:50053
+      - AGGREGATOR_SVC_LABORATORY_SERVICE_ADDR=laboratory-service:50054
+      - AGGREGATOR_SVC_MASTER_DATA_SERVICE_ADDR=master-data-service:50055
       - AGGREGATOR_SVC_JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - AGGREGATOR_SVC_JWT_ALGORITHM=${JWT_ALGORITHM}
     ports:
@@ -123,6 +167,10 @@ services:
       clinical-service:
         condition: service_started
       pharmacy-service:
+        condition: service_started
+      laboratory-service:
+        condition: service_started
+      master-data-service:
         condition: service_started
 
 networks:

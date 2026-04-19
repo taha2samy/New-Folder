@@ -7,14 +7,16 @@ from app.domain.repository import ClinicalRepository
 from app.domain.models import Encounter, VitalSign, Diagnosis
 from app.events.producers import EncounterEventProducer
 from app.grpc_clients.patient_client import PatientServiceClient
+from app.grpc_clients.master_data_client import MasterDataClient
 
 logger = logging.getLogger(__name__)
 
 class ClinicalEncounterServiceHandler(clinical_pb2_grpc.ClinicalEncounterServiceServicer):
-    def __init__(self, db_session_factory, event_producer: EncounterEventProducer, patient_client: PatientServiceClient):
+    def __init__(self, db_session_factory, event_producer: EncounterEventProducer, patient_client: PatientServiceClient, master_data_client: MasterDataClient):
         self.db_session_factory = db_session_factory
         self.event_producer = event_producer
         self.patient_client = patient_client
+        self.master_data_client = master_data_client
 
     def _extract_context(self, context: grpc.aio.ServicerContext):
         metadata = dict(context.invocation_metadata())
@@ -61,6 +63,13 @@ class ClinicalEncounterServiceHandler(clinical_pb2_grpc.ClinicalEncounterService
         logger.info(f"[Trace: {trace_id}] User {user_id} starting Admission for {request.patient_id}")
         await self._validate_patient(request.patient_id, token, context)
 
+        # Validate Ward ID against Master Data Service
+        if request.ward:
+            wards_list = await self.master_data_client.get_wards(token)
+            ward_ids = {w["id"] for w in wards_list}
+            if request.ward not in ward_ids:
+                await context.abort(grpc.StatusCode.FAILED_PRECONDITION, f"Ward {request.ward} does not exist.")
+
         try:
             async with self.db_session_factory() as session:
                 repo = ClinicalRepository(session)
@@ -86,6 +95,15 @@ class ClinicalEncounterServiceHandler(clinical_pb2_grpc.ClinicalEncounterService
 
     async def CompleteEncounter(self, request, context):
         user_id, role, token, trace_id = self._extract_context(context)
+        
+        # Validate Disease IDs against Master Data Service
+        if request.diagnosis_codes:
+            diseases_list = await self.master_data_client.get_diseases(token)
+            valid_disease_ids = {d["id"] for d in diseases_list}
+            for code in request.diagnosis_codes:
+                if code not in valid_disease_ids:
+                     await context.abort(grpc.StatusCode.FAILED_PRECONDITION, f"Diagnosis Code {code} does not exist.")
+        
         try:
             async with self.db_session_factory() as session:
                 repo = ClinicalRepository(session)

@@ -1,0 +1,9 @@
+grpcio
+grpcio-tools
+sqlalchemy[asyncio]
+asyncpg
+pydantic-settings
+pydantic
+pyjwt
+confluent-kafka
+alembic
