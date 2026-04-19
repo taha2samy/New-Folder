@@ -20,7 +20,8 @@ class ClinicalClient:
                     "encounter_id": response.encounter_id,
                     "status": response.status,
                     "encounter_type": response.encounter_type,
-                    "diagnosis_codes": list(response.diagnosis_codes)
+                    "diagnosis_codes": list(response.diagnosis_codes),
+                    "ward": response.ward
                 })
         except grpc.RpcError as e:
             logger.error(f"gRPC PatientEncountersRequest failed: {e}")

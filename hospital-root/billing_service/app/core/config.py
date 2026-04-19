@@ -1,0 +1,13 @@
+from pydantic_settings import BaseSettings
+
+class Settings(BaseSettings):
+    GRPC_PORT: int = 50056
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/billing_db"
+    KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
+    JWT_SECRET_KEY: str = "supersecretkey"
+    JWT_ALGORITHM: str = "HS256"
+
+    class Config:
+        env_file = ".env"
+
+settings = Settings()

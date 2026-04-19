@@ -1,6 +1,7 @@
 """GraphQL Resolvers and parallel orchestration."""
 
 import asyncio
+import time
 from typing import Optional
 
 import strawberry
@@ -14,7 +15,7 @@ from app.graphql.schema import (
     PatientSummary,
     PatientType,
     ReferenceDataSummary,
-    ClinicalEncounterType,
+    ReferenceDataSummary,
     WardType,
     DiseaseRefType,
     ExamTypeRef,
@@ -33,6 +34,34 @@ client_refs = {
     "laboratory": None,
     "master_data": None,
 }
+
+_MASTER_DATA_CACHE = {
+    "timestamp": 0,
+    "wards": {},
+    "diseases": {},
+    "exams": {},
+}
+
+async def _get_cached_master_data(master_client: MasterDataClient, token: str):
+    """Refreshes master data if TTL (5 mins) expired."""
+    current_time = time.time()
+    if current_time - _MASTER_DATA_CACHE["timestamp"] > 300:
+        wards_fut = master_client.get_wards(token)
+        diseases_fut = master_client.get_diseases(token)
+        exams_fut = master_client.get_exam_types(token)
+        
+        wards_data, diseases_data, exams_data = await asyncio.gather(
+            wards_fut, diseases_fut, exams_fut, return_exceptions=True
+        )
+        
+        if not isinstance(wards_data, Exception):
+            _MASTER_DATA_CACHE["wards"] = {w["id"]: w["name"] for w in wards_data}
+        if not isinstance(diseases_data, Exception):
+            _MASTER_DATA_CACHE["diseases"] = {d["id"]: d["description"] for d in diseases_data}
+        if not isinstance(exams_data, Exception):
+            _MASTER_DATA_CACHE["exams"] = {e["id"]: e["description"] for e in exams_data}
+            
+        _MASTER_DATA_CACHE["timestamp"] = current_time
 
 def init_clients(
     patient_client: PatientClient,
@@ -86,11 +115,43 @@ class Query:
             # Core patient data is mandatory; abort the entire dashboard on failure.
             return None
 
+        # Fetch master data cache
+        # Note: In a real system, you'd extract the pure string JWT token out of `metadata`
+        # Because `metadata` is a tuple like (("authorization", "Bearer xyz"),)
+        token = ""
+        for k, v in metadata:
+            if k.lower() == "authorization":
+                token = v.replace("Bearer ", "")
+                break
+        if not token:
+            for k, v in metadata:
+                if k.lower() == "x-jwt-token":
+                    token = v
+                    break
+        
+        master_data_client: MasterDataClient = client_refs["master_data"]
+        await _get_cached_master_data(master_data_client, token)
+
         # Build partial representations cleanly so a single service failure
         # does not bring down the entire unified graph response.
         encounters_list = None
         if encounters_data is not None and not isinstance(encounters_data, Exception):
-            encounters_list = [ClinicalEncounterType(**enc) for enc in encounters_data]
+            encounters_list = []
+            for enc in encounters_data:
+                ward_id = enc.get("ward")
+                ward_name = _MASTER_DATA_CACHE["wards"].get(ward_id) if ward_id else None
+                diag_codes = enc.get("diagnosis_codes", [])
+                diag_names = [_MASTER_DATA_CACHE["diseases"].get(code, code) for code in diag_codes]
+                
+                encounters_list.append(EncounterType(
+                    encounter_id=enc["encounter_id"],
+                    status=enc["status"],
+                    encounter_type=enc["encounter_type"],
+                    diagnosis_codes=diag_codes,
+                    ward_id=ward_id,
+                    ward_name=ward_name,
+                    diagnoses_names=diag_names
+                ))
 
         medications_list = None
         if medications_data is not None and not isinstance(medications_data, Exception):
@@ -98,11 +159,22 @@ class Query:
 
         lab_results_list = None
         if lab_data is not None and not isinstance(lab_data, Exception):
-            lab_results_list = [LabResultType(**lr) for lr in lab_data]
+            lab_results_list = []
+            for lr in lab_data:
+                exam_type_id = lr.get("test_name")
+                mapped_name = _MASTER_DATA_CACHE["exams"].get(exam_type_id, exam_type_id)
+                lab_results_list.append(LabResultType(
+                    id=lr["id"],
+                    test_name=mapped_name,
+                    status=lr["status"],
+                    date=lr["date"],
+                    result_value=lr.get("result_value"),
+                    result_description=lr.get("result_description")
+                ))
 
         return PatientSummary(
             patient=PatientType(**patient_data),
-            recent_encounters=encounters_list,
+            encounters=encounters_list,
             medications=medications_list,
             lab_results=lab_results_list,
         )

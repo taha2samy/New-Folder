@@ -54,4 +54,5 @@ message EncounterResponse {
   string encounter_type = 5; // OPD or ADMISSION
   int64 created_at = 6;
   repeated string diagnosis_codes = 7;
+  string ward = 8;
 }

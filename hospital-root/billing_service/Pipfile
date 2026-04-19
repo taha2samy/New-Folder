@@ -1,0 +1,21 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+grpcio = "*"
+grpcio-tools = "*"
+pydantic = "*"
+pydantic-settings = "*"
+sqlalchemy = "*"
+psycopg2-binary = "*"
+alembic = "*"
+asyncpg = "*"
+aiokafka = "*"
+python-jose = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.13"

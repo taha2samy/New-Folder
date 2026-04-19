@@ -143,5 +143,6 @@ class ClinicalEncounterServiceHandler(clinical_pb2_grpc.ClinicalEncounterService
             status=encounter.status,
             encounter_type=encounter.encounter_type,
             created_at=int(encounter.created_at.timestamp() if encounter.created_at else 0),
-            diagnosis_codes=[d.code for d in encounter.diagnoses] if getattr(encounter, "diagnoses", None) else []
+            diagnosis_codes=[d.code for d in encounter.diagnoses] if getattr(encounter, "diagnoses", None) else [],
+            ward=encounter.ward if getattr(encounter, "ward", None) else ""
         )

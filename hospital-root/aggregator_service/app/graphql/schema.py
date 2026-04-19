@@ -10,6 +10,9 @@ class EncounterType:
     status: str
     encounter_type: str
     diagnosis_codes: List[str]
+    ward_id: Optional[str] = None
+    ward_name: Optional[str] = None
+    diagnoses_names: Optional[List[str]] = None
 
 @strawberry.type
 class DiagnosticType:

@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package billing;
+
+service BillingService {
+    rpc GetPatientBill(BillRequest) returns (BillResponse);
+    rpc ProcessPayment(PaymentRequest) returns (PaymentResponse);
+    rpc UpdatePriceList(PriceRequest) returns (PriceResponse);
+}
+
+message BillRequest {
+    string patient_id = 1;
+}
+
+message BillItemProto {
+    string id = 1;
+    string item_type = 2; // DRUG, PROCEDURE, ENCOUNTER
+    string reference_id = 3;
+    int32 quantity = 4;
+    double amount = 5;
+    string name = 6;
+}
+
+message BillResponse {
+    string bill_id = 1;
+    string patient_id = 2;
+    double total_amount = 3;
+    double balance = 4;
+    string status = 5; // OPEN, CLOSED
+    repeated BillItemProto items = 6;
+}
+
+message PaymentRequest {
+    string bill_id = 1;
+    double amount = 2;
+    string user_id = 3;
+}
+
+message PaymentResponse {
+    bool success = 1;
+    double remaining_balance = 2;
+}
+
+message PriceItem {
+    string item_type = 1;
+    string reference_id = 2;
+    double price = 3;
+}
+
+message PriceRequest {
+    repeated PriceItem items = 1;
+}
+
+message PriceResponse {
+    bool success = 1;
+}

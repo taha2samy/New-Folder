@@ -19,6 +19,9 @@ tasks:
   generate:
     desc: "Compiles .proto files into the generated/ folder"
     cmds:
-      - pipenv run python -m grpc_tools.protoc -I../protos --python_out=generated --grpc_python_out=generated ../protos/clinical.proto ../protos/patient.proto
+      - pipenv run python -m grpc_tools.protoc -I../protos --python_out=generated --grpc_python_out=generated ../protos/clinical.proto ../protos/patient.proto ../protos/pharmacy.proto ../protos/laboratory.proto ../protos/master_data.proto
       - sed -i 's/import clinical_pb2/from . import clinical_pb2/' generated/clinical_pb2_grpc.py
       - sed -i 's/import patient_pb2/from . import patient_pb2/' generated/patient_pb2_grpc.py
+      - sed -i 's/import pharmacy_pb2/from . import pharmacy_pb2/' generated/pharmacy_pb2_grpc.py
+      - sed -i 's/import laboratory_pb2/from . import laboratory_pb2/' generated/laboratory_pb2_grpc.py
+      - sed -i 's/import master_data_pb2/from . import master_data_pb2/' generated/master_data_pb2_grpc.py
