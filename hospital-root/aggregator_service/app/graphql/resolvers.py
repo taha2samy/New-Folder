@@ -15,17 +15,19 @@ from app.graphql.schema import (
     PatientSummary,
     PatientType,
     ReferenceDataSummary,
-    ReferenceDataSummary,
     WardType,
     DiseaseRefType,
     ExamTypeRef,
     OperationTypeRef,
+    BillItemType,
+    BillingSummaryType,
 )
 from app.grpc_clients.clinical_client import ClinicalClient
 from app.grpc_clients.laboratory_client import LaboratoryClient
 from app.grpc_clients.patient_client import PatientClient
 from app.grpc_clients.pharmacy_client import PharmacyClient
 from app.grpc_clients.master_data_client import MasterDataClient
+from app.grpc_clients.billing_client import BillingClient
 
 client_refs = {
     "patient": None,
@@ -33,6 +35,7 @@ client_refs = {
     "pharmacy": None,
     "laboratory": None,
     "master_data": None,
+    "billing": None,
 }
 
 _MASTER_DATA_CACHE = {
@@ -69,12 +72,14 @@ def init_clients(
     pharmacy_client: PharmacyClient,
     laboratory_client: LaboratoryClient,
     master_data_client: MasterDataClient,
+    billing_client: BillingClient,
 ) -> None:
     client_refs["patient"] = patient_client
     client_refs["clinical"] = clinical_client
     client_refs["pharmacy"] = pharmacy_client
     client_refs["laboratory"] = laboratory_client
     client_refs["master_data"] = master_data_client
+    client_refs["billing"] = billing_client
 
 @strawberry.type
 class Query:
@@ -94,20 +99,23 @@ class Query:
     async def patient_full_dashboard(self, info: Info, id: strawberry.ID) -> Optional[PatientSummary]:
         context = info.context
         metadata = context.metadata
+        token = context.token
 
         # Parallelise all independent downstream gRPC calls.
         patient_client: PatientClient = client_refs["patient"]
         clinical_client: ClinicalClient = client_refs["clinical"]
         pharmacy_client: PharmacyClient = client_refs["pharmacy"]
         laboratory_client: LaboratoryClient = client_refs["laboratory"]
+        billing_client: BillingClient = client_refs["billing"]
 
         patient_task     = asyncio.create_task(patient_client.get_patient(str(id), metadata))
         encounters_task  = asyncio.create_task(clinical_client.get_encounters(str(id), metadata))
         medications_task = asyncio.create_task(pharmacy_client.get_patient_medications(str(id), metadata))
         lab_task         = asyncio.create_task(laboratory_client.get_patient_lab_history(str(id), metadata))
+        billing_task     = asyncio.create_task(billing_client.get_patient_bill(str(id), metadata))
 
-        patient_data, encounters_data, medications_data, lab_data = await asyncio.gather(
-            patient_task, encounters_task, medications_task, lab_task,
+        patient_data, encounters_data, medications_data, lab_data, billing_data = await asyncio.gather(
+            patient_task, encounters_task, medications_task, lab_task, billing_task,
             return_exceptions=True,
         )
 
@@ -115,20 +123,6 @@ class Query:
             # Core patient data is mandatory; abort the entire dashboard on failure.
             return None
 
-        # Fetch master data cache
-        # Note: In a real system, you'd extract the pure string JWT token out of `metadata`
-        # Because `metadata` is a tuple like (("authorization", "Bearer xyz"),)
-        token = ""
-        for k, v in metadata:
-            if k.lower() == "authorization":
-                token = v.replace("Bearer ", "")
-                break
-        if not token:
-            for k, v in metadata:
-                if k.lower() == "x-jwt-token":
-                    token = v
-                    break
-        
         master_data_client: MasterDataClient = client_refs["master_data"]
         await _get_cached_master_data(master_data_client, token)
 
@@ -172,11 +166,22 @@ class Query:
                     result_description=lr.get("result_description")
                 ))
 
+        billing_summary = None
+        if billing_data is not None and not isinstance(billing_data, Exception):
+            items_list = [BillItemType(**item) for item in billing_data.get("items", [])]
+            billing_summary = BillingSummaryType(
+                total_amount=billing_data.get("total_amount", 0.0),
+                balance=billing_data.get("balance", 0.0),
+                status=billing_data.get("status", ""),
+                items=items_list,
+            )
+
         return PatientSummary(
             patient=PatientType(**patient_data),
             encounters=encounters_list,
             medications=medications_list,
             lab_results=lab_results_list,
+            billing=billing_summary,
         )
 
 @strawberry.type

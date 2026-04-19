@@ -15,6 +15,7 @@ from app.grpc_clients.clinical_client import ClinicalClient
 from app.grpc_clients.pharmacy_client import PharmacyClient
 from app.grpc_clients.laboratory_client import LaboratoryClient
 from app.grpc_clients.master_data_client import MasterDataClient
+from app.grpc_clients.billing_client import BillingClient
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)
 
@@ -24,10 +25,11 @@ clinical_channel   = None
 pharmacy_channel   = None
 laboratory_channel = None
 master_data_channel= None
+billing_channel    = None
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
-    global patient_channel, clinical_channel, pharmacy_channel, laboratory_channel, master_data_channel
+    global patient_channel, clinical_channel, pharmacy_channel, laboratory_channel, master_data_channel, billing_channel
 
     # Open persistent gRPC connection pools to all downstream services.
     patient_channel    = grpc.aio.insecure_channel(settings.PATIENT_SERVICE_ADDR)
@@ -35,6 +37,7 @@ async def lifespan(app: FastAPI):
     pharmacy_channel   = grpc.aio.insecure_channel(settings.PHARMACY_SERVICE_ADDR)
     laboratory_channel = grpc.aio.insecure_channel(settings.LABORATORY_SERVICE_ADDR)
     master_data_channel= grpc.aio.insecure_channel(settings.MASTER_DATA_SERVICE_ADDR)
+    billing_channel    = grpc.aio.insecure_channel(settings.BILLING_SERVICE_ADDR)
 
     init_clients(
         PatientClient(patient_channel),
@@ -42,6 +45,7 @@ async def lifespan(app: FastAPI):
         PharmacyClient(pharmacy_channel),
         LaboratoryClient(laboratory_channel),
         MasterDataClient(master_data_channel),
+        BillingClient(billing_channel),
     )
 
     yield
@@ -51,6 +55,7 @@ async def lifespan(app: FastAPI):
     await pharmacy_channel.close()
     await laboratory_channel.close()
     await master_data_channel.close()
+    await billing_channel.close()
 
 app = FastAPI(lifespan=lifespan)
 

@@ -15,6 +15,19 @@ class EncounterType:
     diagnoses_names: Optional[List[str]] = None
 
 @strawberry.type
+class BillItemType:
+    description: str
+    amount: float
+    date: int
+
+@strawberry.type
+class BillingSummaryType:
+    total_amount: float
+    balance: float
+    status: str
+    items: List[BillItemType]
+
+@strawberry.type
 class DiagnosticType:
     id: str
     disease_code: str
@@ -96,6 +109,7 @@ class PatientSummary:
     encounters:  Optional[List[EncounterType]]
     medications: Optional[List[MedicationType]]
     lab_results: Optional[List[LabResultType]]
+    billing:     Optional[BillingSummaryType] = None
 
 @strawberry.type
 class DispenseResponse:
