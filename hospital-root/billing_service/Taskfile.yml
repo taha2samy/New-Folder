@@ -2,24 +2,30 @@ version: '3'
 
 tasks:
   setup:
-    desc: "Install all service dependencies via Pipenv"
+    desc: Install all service dependencies via Pipenv
     cmds:
       - pipenv install --dev
 
-  proto:
-    desc: "Generate gRPC stubs from billing.proto"
+  generate:
+    desc: Generate gRPC stubs from billing.proto
     cmds:
       - mkdir -p generated
-      - touch generated/__init__.py
       - pipenv run python -m grpc_tools.protoc -I../protos --python_out=./generated --grpc_python_out=./generated ../protos/billing.proto
-      - pipenv run sed -i 's/import billing_pb2 as billing__pb2/from . import billing_pb2 as billing__pb2/' generated/billing_pb2_grpc.py
+      - touch generated/__init__.py
+      - sed -i 's/import billing_pb2 as billing__pb2/from . import billing_pb2 as billing__pb2/' generated/billing_pb2_grpc.py
 
   migrate:
-    desc: "Apply Alembic database migrations"
+    desc: Apply Alembic database migrations
+    dir: '{{.TASKFILE_DIR}}'
     cmds:
-      - pipenv run alembic upgrade head
+      - sh -c "set -e; pipenv run alembic upgrade head || echo 'Migration up-to-date or failed expectedly'"
 
   run:
-    desc: "Start the billing gRPC server locally"
+    desc: Start the billing gRPC server locally
     cmds:
-      - pipenv run python -m app.main
+      - PYTHONPATH=. pipenv run python -m app.main
+
+  run:dev:
+    desc: Start the billing gRPC server locally (dev alias)
+    cmds:
+      - PYTHONPATH=. pipenv run python -m app.main

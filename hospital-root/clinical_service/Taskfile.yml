@@ -2,28 +2,32 @@ version: '3'
 
 tasks:
   install:
-    desc: "Runs pipenv install"
+    desc: Runs pipenv install
     cmds:
       - pipenv install --dev
 
   migrate:
-    desc: "Runs Alembic migrations idempotently"
+    desc: Runs Alembic migrations idempotently
     cmds:
-      - sh -c "set -e; pipenv run alembic upgrade head || echo 'Migration up-to-date or failed expectedly'"
+      - PYTHONPATH=. pipenv run alembic upgrade head
+
 
   run:dev:
-    desc: "Starts the clinical gRPC server locally"
+    desc: Starts the clinical gRPC server locally
     cmds:
-      - pipenv run python -m app.main
+      - PYTHONPATH=. pipenv run python -m app.main
 
   test:
-    desc: "Executes unit and integration tests"
+    desc: Executes unit and integration tests
     cmds:
       - pipenv run pytest
 
   generate:
-    desc: "Compiles .proto files into the generated/ folder"
+    desc: Compiles .proto files into the generated/ folder
     cmds:
-      - pipenv run python -m grpc_tools.protoc -I../protos --python_out=generated --grpc_python_out=generated ../protos/clinical.proto ../protos/patient.proto
+      - mkdir -p generated
+      - pipenv run python -m grpc_tools.protoc -I../protos --python_out=generated --grpc_python_out=generated ../protos/clinical.proto ../protos/patient.proto ../protos/master_data.proto
+      - touch generated/__init__.py
       - sed -i 's/import clinical_pb2/from . import clinical_pb2/' generated/clinical_pb2_grpc.py
       - sed -i 's/import patient_pb2/from . import patient_pb2/' generated/patient_pb2_grpc.py
+      - sed -i 's/import master_data_pb2/from . import master_data_pb2/' generated/master_data_pb2_grpc.py

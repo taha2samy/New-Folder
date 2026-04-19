@@ -6,11 +6,12 @@ name = "pypi"
 [packages]
 grpcio = "*"
 pyjwt = "*"
-sqlalchemy = "*"
 asyncpg = "*"
 aiokafka = "*"
 pydantic = "*"
 pydantic-settings = "*"
+sqlalchemy = {extras = ["asyncio"], version = "*"}
+alembic = "*"
 
 [dev-packages]
 grpcio-tools = "*"

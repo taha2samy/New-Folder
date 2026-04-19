@@ -6,14 +6,13 @@ tasks:
     cmds:
       - pipenv install --dev
 
-  proto:
-    desc: Generate gRPC stubs from master_data.proto
+  generate:
+    desc: Compiles .proto files into the generated/ folder
     cmds:
       - mkdir -p generated
       - pipenv run python -m grpc_tools.protoc -I../protos --python_out=./generated --grpc_python_out=./generated ../protos/master_data.proto
       - touch generated/__init__.py
-      # Rewrite absolute import to relative import in the generated stub
-      - pipenv run sed -i 's/import master_data_pb2 as master__data__pb2/from . import master_data_pb2 as master__data__pb2/' generated/master_data_pb2_grpc.py
+      - sed -i 's/import master_data_pb2 as master__data__pb2/from . import master_data_pb2 as master__data__pb2/' generated/master_data_pb2_grpc.py
 
   migrate:
     desc: Apply Alembic database migrations
@@ -23,4 +22,9 @@ tasks:
   run:
     desc: Start the master-data gRPC server locally
     cmds:
-      - pipenv run python app/main.py
+      - PYTHONPATH=. pipenv run python -m app.main
+
+  run:dev:
+    desc: Start the master-data gRPC server locally (dev alias)
+    cmds:
+      - PYTHONPATH=. pipenv run python -m app.main

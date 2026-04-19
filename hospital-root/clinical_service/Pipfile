@@ -11,6 +11,7 @@ asyncpg = "*"
 aiokafka = "*"
 pydantic = "*"
 pydantic-settings = "*"
+alembic="*"  
 
 [dev-packages]
 grpcio-tools = "*"
