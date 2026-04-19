@@ -9,6 +9,8 @@ pyjwt = "*"
 sqlalchemy = "*"
 asyncpg = "*"
 aiokafka = "*"
+pydantic = "*"
+pydantic-settings = "*"
 
 [dev-packages]
 grpcio-tools = "*"

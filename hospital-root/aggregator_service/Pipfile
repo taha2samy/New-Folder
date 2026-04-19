@@ -8,6 +8,7 @@ fastapi = "*"
 strawberry-graphql = "*"
 grpcio = "*"
 uvicorn = "*"
+pydantic-settings = "*"
 
 [dev-packages]
 grpcio-tools = "*"
