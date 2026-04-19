@@ -1,6 +1,9 @@
 version: '3'
 
 dotenv: ['./hospital-root/.env']
+env:
+  DOCKER_API_VERSION: "1.41"
+
 
 includes:
   patient:
