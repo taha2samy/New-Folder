@@ -17,13 +17,13 @@ class PharmacyRepository:
 
     async def get_pharmaceutical(self, pharma_id: str) -> Pharmaceutical:
         result = await self._session.execute(
-            select(Pharmaceutical).where(Pharmaceutical.id == pharma_id)
+            select(Pharmaceutical).where(Pharmaceutical.id == pharma_id).where(Pharmaceutical.is_deleted == False)
         )
         return result.scalars().first()
         
     async def get_pharmaceutical_by_code(self, code: str) -> Pharmaceutical:
         result = await self._session.execute(
-            select(Pharmaceutical).where(Pharmaceutical.code == code)
+            select(Pharmaceutical).where(Pharmaceutical.code == code).where(Pharmaceutical.is_deleted == False)
         )
         return result.scalars().first()
 
@@ -35,6 +35,7 @@ class PharmacyRepository:
         result = await self._session.execute(
             select(MedicalLot)
             .where(MedicalLot.pharmaceutical_id == pharma_id)
+            .where(MedicalLot.is_deleted == False)
             .where(MedicalLot.quantity > 0)
         )
         lots = result.scalars().all()
@@ -43,7 +44,7 @@ class PharmacyRepository:
     async def add_stock(self, pharma_id: str, lot_code: str, expiry_date: datetime, quantity: int, unit_cost: float, user_id: str) -> MedicalLot:
         # Check if lot exists
         result = await self._session.execute(
-            select(MedicalLot).where(MedicalLot.lot_code == lot_code)
+            select(MedicalLot).where(MedicalLot.lot_code == lot_code).where(MedicalLot.is_deleted == False)
         )
         lot = result.scalars().first()
         if lot:
@@ -82,6 +83,7 @@ class PharmacyRepository:
         result = await self._session.execute(
             select(MedicalLot)
             .where(MedicalLot.pharmaceutical_id == pharma_id)
+            .where(MedicalLot.is_deleted == False)
             .where(MedicalLot.quantity > 0)
             .order_by(MedicalLot.expiry_date.asc())
         )

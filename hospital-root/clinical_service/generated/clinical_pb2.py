@@ -24,27 +24,37 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0e\x63linical.proto\x12\x08\x63linical\"|\n\x06Vitals\x12\x1f\n\x17\x62lood_pressure_systolic\x18\x01 \x01(\x01\x12 \n\x18\x62lood_pressure_diastolic\x18\x02 \x01(\x01\x12\x12\n\nheart_rate\x18\x03 \x01(\x01\x12\x1b\n\x13temperature_celsius\x18\x04 \x01(\x01\"8\n\tProcedure\x12\x16\n\x0eprocedure_code\x18\x01 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x02 \x01(\t\"i\n\x0fOPDVisitRequest\x12\x12\n\npatient_id\x18\x01 \x01(\t\x12\x11\n\tdoctor_id\x18\x02 \x01(\t\x12 \n\x06vitals\x18\x03 \x01(\x0b\x32\x10.clinical.Vitals\x12\r\n\x05notes\x18\x04 \x01(\t\"[\n\x10\x41\x64missionRequest\x12\x12\n\npatient_id\x18\x01 \x01(\t\x12\x11\n\tdoctor_id\x18\x02 \x01(\t\x12\x0c\n\x04ward\x18\x03 \x01(\t\x12\x12\n\nbed_number\x18\x04 \x01(\t\"\x82\x01\n\x0f\x43ompleteRequest\x12\x14\n\x0c\x65ncounter_id\x18\x01 \x01(\t\x12\x17\n\x0f\x64iagnosis_codes\x18\x02 \x03(\t\x12\'\n\nprocedures\x18\x03 \x03(\x0b\x32\x13.clinical.Procedure\x12\x17\n\x0f\x64ischarge_notes\x18\x04 \x01(\t\".\n\x18PatientEncountersRequest\x12\x12\n\npatient_id\x18\x01 \x01(\t\"\xb3\x01\n\x11\x45ncounterResponse\x12\x14\n\x0c\x65ncounter_id\x18\x01 \x01(\t\x12\x12\n\npatient_id\x18\x02 \x01(\t\x12\x11\n\tdoctor_id\x18\x03 \x01(\t\x12\x0e\n\x06status\x18\x04 \x01(\t\x12\x16\n\x0e\x65ncounter_type\x18\x05 \x01(\t\x12\x12\n\ncreated_at\x18\x06 \x01(\x03\x12\x17\n\x0f\x64iagnosis_codes\x18\x07 \x03(\t\x12\x0c\n\x04ward\x18\x08 \x01(\t2\xd7\x02\n\x18\x43linicalEncounterService\x12H\n\x0e\x43reateOPDVisit\x12\x19.clinical.OPDVisitRequest\x1a\x1b.clinical.EncounterResponse\x12I\n\x0eStartAdmission\x12\x1a.clinical.AdmissionRequest\x1a\x1b.clinical.EncounterResponse\x12K\n\x11\x43ompleteEncounter\x12\x19.clinical.CompleteRequest\x1a\x1b.clinical.EncounterResponse\x12Y\n\x14GetPatientEncounters\x12\".clinical.PatientEncountersRequest\x1a\x1b.clinical.EncounterResponse0\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0e\x63linical.proto\x12\x08\x63linical\"\x8a\x01\n\x06Vitals\x12\x1f\n\x17\x62lood_pressure_systolic\x18\x01 \x01(\x01\x12 \n\x18\x62lood_pressure_diastolic\x18\x02 \x01(\x01\x12\x12\n\nheart_rate\x18\x03 \x01(\x01\x12\x1b\n\x13temperature_celsius\x18\x04 \x01(\x01\x12\x0c\n\x04spo2\x18\x05 \x01(\x01\"8\n\tProcedure\x12\x16\n\x0eprocedure_code\x18\x01 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x02 \x01(\t\"i\n\x0fOPDVisitRequest\x12\x12\n\npatient_id\x18\x01 \x01(\t\x12\x11\n\tdoctor_id\x18\x02 \x01(\t\x12 \n\x06vitals\x18\x03 \x01(\x0b\x32\x10.clinical.Vitals\x12\r\n\x05notes\x18\x04 \x01(\t\"^\n\x10\x41\x64missionRequest\x12\x12\n\npatient_id\x18\x01 \x01(\t\x12\x11\n\tdoctor_id\x18\x02 \x01(\t\x12\x0f\n\x07ward_id\x18\x03 \x01(\t\x12\x12\n\nbed_number\x18\x04 \x01(\t\"\x80\x01\n\x0f\x43ompleteRequest\x12\x14\n\x0c\x65ncounter_id\x18\x01 \x01(\t\x12\x15\n\rdiagnoses_ids\x18\x02 \x03(\t\x12\'\n\nprocedures\x18\x03 \x03(\x0b\x32\x13.clinical.Procedure\x12\x17\n\x0f\x64ischarge_notes\x18\x04 \x01(\t\".\n\x18PatientEncountersRequest\x12\x12\n\npatient_id\x18\x01 \x01(\t\"\xc2\x01\n\x11\x45ncounterResponse\x12\x14\n\x0c\x65ncounter_id\x18\x01 \x01(\t\x12\x12\n\npatient_id\x18\x02 \x01(\t\x12\x11\n\tdoctor_id\x18\x03 \x01(\t\x12\x0e\n\x06status\x18\x04 \x01(\t\x12\x16\n\x0e\x65ncounter_type\x18\x05 \x01(\t\x12\x12\n\ncreated_at\x18\x06 \x01(\x03\x12\x15\n\rdiagnoses_ids\x18\x07 \x03(\t\x12\x0f\n\x07ward_id\x18\x08 \x01(\t\x12\x0c\n\x04spo2\x18\t \x01(\x01\"d\n\x12\x41ppointmentRequest\x12\x12\n\npatient_id\x18\x01 \x01(\t\x12\x11\n\tdoctor_id\x18\x02 \x01(\t\x12\x0f\n\x07ward_id\x18\x03 \x01(\t\x12\x16\n\x0escheduled_time\x18\x04 \x01(\x03\"1\n\x13\x41ppointmentResponse\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0e\n\x06status\x18\x02 \x01(\t\"\x87\x01\n\x0eSurgeryRequest\x12\x12\n\npatient_id\x18\x01 \x01(\t\x12\x19\n\x11operation_type_id\x18\x02 \x01(\t\x12\x12\n\ntheater_id\x18\x03 \x01(\t\x12\x12\n\nstart_time\x18\x04 \x01(\x03\x12\x1e\n\x16\x65stimated_duration_min\x18\x05 \x01(\x05\":\n\x14RecordSurgeryRequest\x12\x12\n\nsurgery_id\x18\x01 \x01(\t\x12\x0e\n\x06status\x18\x02 \x01(\t\"-\n\x0fSurgeryResponse\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0e\n\x06status\x18\x02 \x01(\t2\xbd\x04\n\x18\x43linicalEncounterService\x12H\n\x0e\x43reateOPDVisit\x12\x19.clinical.OPDVisitRequest\x1a\x1b.clinical.EncounterResponse\x12I\n\x0eStartAdmission\x12\x1a.clinical.AdmissionRequest\x1a\x1b.clinical.EncounterResponse\x12K\n\x11\x43ompleteEncounter\x12\x19.clinical.CompleteRequest\x1a\x1b.clinical.EncounterResponse\x12Y\n\x14GetPatientEncounters\x12\".clinical.PatientEncountersRequest\x1a\x1b.clinical.EncounterResponse0\x01\x12P\n\x11\x43reateAppointment\x12\x1c.clinical.AppointmentRequest\x1a\x1d.clinical.AppointmentResponse\x12\x46\n\x0fScheduleSurgery\x12\x18.clinical.SurgeryRequest\x1a\x19.clinical.SurgeryResponse\x12J\n\rRecordSurgery\x12\x1e.clinical.RecordSurgeryRequest\x1a\x19.clinical.SurgeryResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'clinical_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_VITALS']._serialized_start=28
-  _globals['_VITALS']._serialized_end=152
-  _globals['_PROCEDURE']._serialized_start=154
-  _globals['_PROCEDURE']._serialized_end=210
-  _globals['_OPDVISITREQUEST']._serialized_start=212
-  _globals['_OPDVISITREQUEST']._serialized_end=317
-  _globals['_ADMISSIONREQUEST']._serialized_start=319
-  _globals['_ADMISSIONREQUEST']._serialized_end=410
-  _globals['_COMPLETEREQUEST']._serialized_start=413
-  _globals['_COMPLETEREQUEST']._serialized_end=543
-  _globals['_PATIENTENCOUNTERSREQUEST']._serialized_start=545
-  _globals['_PATIENTENCOUNTERSREQUEST']._serialized_end=591
-  _globals['_ENCOUNTERRESPONSE']._serialized_start=594
-  _globals['_ENCOUNTERRESPONSE']._serialized_end=773
-  _globals['_CLINICALENCOUNTERSERVICE']._serialized_start=776
-  _globals['_CLINICALENCOUNTERSERVICE']._serialized_end=1119
+  _globals['_VITALS']._serialized_start=29
+  _globals['_VITALS']._serialized_end=167
+  _globals['_PROCEDURE']._serialized_start=169
+  _globals['_PROCEDURE']._serialized_end=225
+  _globals['_OPDVISITREQUEST']._serialized_start=227
+  _globals['_OPDVISITREQUEST']._serialized_end=332
+  _globals['_ADMISSIONREQUEST']._serialized_start=334
+  _globals['_ADMISSIONREQUEST']._serialized_end=428
+  _globals['_COMPLETEREQUEST']._serialized_start=431
+  _globals['_COMPLETEREQUEST']._serialized_end=559
+  _globals['_PATIENTENCOUNTERSREQUEST']._serialized_start=561
+  _globals['_PATIENTENCOUNTERSREQUEST']._serialized_end=607
+  _globals['_ENCOUNTERRESPONSE']._serialized_start=610
+  _globals['_ENCOUNTERRESPONSE']._serialized_end=804
+  _globals['_APPOINTMENTREQUEST']._serialized_start=806
+  _globals['_APPOINTMENTREQUEST']._serialized_end=906
+  _globals['_APPOINTMENTRESPONSE']._serialized_start=908
+  _globals['_APPOINTMENTRESPONSE']._serialized_end=957
+  _globals['_SURGERYREQUEST']._serialized_start=960
+  _globals['_SURGERYREQUEST']._serialized_end=1095
+  _globals['_RECORDSURGERYREQUEST']._serialized_start=1097
+  _globals['_RECORDSURGERYREQUEST']._serialized_end=1155
+  _globals['_SURGERYRESPONSE']._serialized_start=1157
+  _globals['_SURGERYRESPONSE']._serialized_end=1202
+  _globals['_CLINICALENCOUNTERSERVICE']._serialized_start=1205
+  _globals['_CLINICALENCOUNTERSERVICE']._serialized_end=1778
 # @@protoc_insertion_point(module_scope)

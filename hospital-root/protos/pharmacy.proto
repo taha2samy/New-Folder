@@ -7,6 +7,7 @@ service PharmacyService {
   rpc DispenseMedicine (DispenseRequest) returns (DispenseResponse);
   rpc AddStock (AddStockRequest) returns (AddStockResponse);
   rpc GetPatientMedications (PatientMedicationsRequest) returns (PatientMedicationsResponse);
+  rpc PerformInventory (InventoryRequest) returns (InventoryResponse);
 }
 
 message StockRequest {
@@ -58,4 +59,15 @@ message MedicationRecord {
 message PatientMedicationsResponse {
   string patient_id = 1;
   repeated MedicationRecord medications = 2;
+}
+
+message InventoryRequest {
+  string lot_id = 1;
+  int32 actual_quantity = 2;
+  string notes = 3;
+}
+
+message InventoryResponse {
+  bool success = 1;
+  int32 discrepancy = 2;
 }

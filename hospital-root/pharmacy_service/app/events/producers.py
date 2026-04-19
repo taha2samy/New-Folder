@@ -28,13 +28,15 @@ class PharmacyEventProducer:
         patient_id: str, 
         medical_id: str, 
         quantity_dispensed: int, 
-        unit_cost: float
+        unit_cost: float,
+        actor_id: str
     ):
         event_payload = {
             "patient_id": patient_id,
             "medical_id": medical_id,
             "quantity_dispensed": quantity_dispensed,
             "unit_cost": unit_cost,
+            "actor_id": actor_id,
             "timestamp": datetime.utcnow().isoformat()
         }
         self.producer.produce(

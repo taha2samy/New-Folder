@@ -64,3 +64,18 @@ class PatientRepository:
         await self.session.commit()
         await self.session.refresh(patient)
         return patient
+
+    async def update(self, patient: Patient) -> Patient:
+        """
+        Updates an existing Patient entity.
+        
+        Args:
+            patient: The populated Patient domain entity.
+            
+        Returns:
+            The persisted Patient entity.
+        """
+        self.session.add(patient)
+        await self.session.commit()
+        await self.session.refresh(patient)
+        return patient

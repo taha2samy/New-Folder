@@ -4,6 +4,7 @@ CREATE DATABASE pharmacy_db;
 CREATE DATABASE aggregator_db;
 CREATE DATABASE laboratory_db;
 CREATE DATABASE reference_db;
+CREATE DATABASE keycloak_db;
 
 \c reference_db;
 

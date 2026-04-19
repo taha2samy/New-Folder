@@ -2,7 +2,7 @@
 
 import grpc
 from typing import Callable, Any
-from app.core.security import decode_jwt_token
+from app.core.security import decode_jwt_token, extract_roles
 
 class AuthInterceptor(grpc.aio.ServerInterceptor):
     async def intercept_service(self, continuation: Callable, handler_call_details: grpc.HandlerCallDetails) -> Any:
@@ -19,14 +19,14 @@ class AuthInterceptor(grpc.aio.ServerInterceptor):
             return self._abort(grpc.StatusCode.UNAUTHENTICATED, "Invalid token.")
 
         user_id = decoded.get("sub")
-        role = decoded.get("role")
+        roles = extract_roles(decoded)
 
-        if not user_id or not role:
+        if not user_id:
             return self._abort(grpc.StatusCode.UNAUTHENTICATED, "Missing claims.")
             
         new_metadata = list(handler_call_details.invocation_metadata)
         new_metadata.append(("x-user-id", str(user_id)))
-        new_metadata.append(("x-user-role", str(role)))
+        new_metadata.append(("x-user-roles", ",".join(roles)))
         new_metadata.append(("x-jwt-token", str(token)))
         
         new_details = grpc.HandlerCallDetails(

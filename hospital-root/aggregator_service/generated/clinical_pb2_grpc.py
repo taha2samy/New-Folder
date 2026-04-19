@@ -54,6 +54,21 @@ class ClinicalEncounterServiceStub(object):
                 request_serializer=clinical__pb2.PatientEncountersRequest.SerializeToString,
                 response_deserializer=clinical__pb2.EncounterResponse.FromString,
                 _registered_method=True)
+        self.CreateAppointment = channel.unary_unary(
+                '/clinical.ClinicalEncounterService/CreateAppointment',
+                request_serializer=clinical__pb2.AppointmentRequest.SerializeToString,
+                response_deserializer=clinical__pb2.AppointmentResponse.FromString,
+                _registered_method=True)
+        self.ScheduleSurgery = channel.unary_unary(
+                '/clinical.ClinicalEncounterService/ScheduleSurgery',
+                request_serializer=clinical__pb2.SurgeryRequest.SerializeToString,
+                response_deserializer=clinical__pb2.SurgeryResponse.FromString,
+                _registered_method=True)
+        self.RecordSurgery = channel.unary_unary(
+                '/clinical.ClinicalEncounterService/RecordSurgery',
+                request_serializer=clinical__pb2.RecordSurgeryRequest.SerializeToString,
+                response_deserializer=clinical__pb2.SurgeryResponse.FromString,
+                _registered_method=True)
 
 
 class ClinicalEncounterServiceServicer(object):
@@ -83,6 +98,24 @@ class ClinicalEncounterServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def CreateAppointment(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ScheduleSurgery(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def RecordSurgery(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_ClinicalEncounterServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -105,6 +138,21 @@ def add_ClinicalEncounterServiceServicer_to_server(servicer, server):
                     servicer.GetPatientEncounters,
                     request_deserializer=clinical__pb2.PatientEncountersRequest.FromString,
                     response_serializer=clinical__pb2.EncounterResponse.SerializeToString,
+            ),
+            'CreateAppointment': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreateAppointment,
+                    request_deserializer=clinical__pb2.AppointmentRequest.FromString,
+                    response_serializer=clinical__pb2.AppointmentResponse.SerializeToString,
+            ),
+            'ScheduleSurgery': grpc.unary_unary_rpc_method_handler(
+                    servicer.ScheduleSurgery,
+                    request_deserializer=clinical__pb2.SurgeryRequest.FromString,
+                    response_serializer=clinical__pb2.SurgeryResponse.SerializeToString,
+            ),
+            'RecordSurgery': grpc.unary_unary_rpc_method_handler(
+                    servicer.RecordSurgery,
+                    request_deserializer=clinical__pb2.RecordSurgeryRequest.FromString,
+                    response_serializer=clinical__pb2.SurgeryResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -215,6 +263,87 @@ class ClinicalEncounterService(object):
             '/clinical.ClinicalEncounterService/GetPatientEncounters',
             clinical__pb2.PatientEncountersRequest.SerializeToString,
             clinical__pb2.EncounterResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def CreateAppointment(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/clinical.ClinicalEncounterService/CreateAppointment',
+            clinical__pb2.AppointmentRequest.SerializeToString,
+            clinical__pb2.AppointmentResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ScheduleSurgery(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/clinical.ClinicalEncounterService/ScheduleSurgery',
+            clinical__pb2.SurgeryRequest.SerializeToString,
+            clinical__pb2.SurgeryResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def RecordSurgery(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/clinical.ClinicalEncounterService/RecordSurgery',
+            clinical__pb2.RecordSurgeryRequest.SerializeToString,
+            clinical__pb2.SurgeryResponse.FromString,
             options,
             channel_credentials,
             insecure,

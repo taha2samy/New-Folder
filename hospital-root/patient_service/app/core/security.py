@@ -24,3 +24,9 @@ def decode_jwt_token(token: str) -> Optional[Dict[str, Any]]:
         return decoded
     except jwt.PyJWTError:
         return None
+
+def extract_roles(decoded: Dict[str, Any]) -> list[str]:
+    """Extracts Keycloak realm roles from the decoded JWT."""
+    realm_access = decoded.get("realm_access", {})
+    return realm_access.get("roles", [])
+

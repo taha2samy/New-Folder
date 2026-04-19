@@ -1,6 +1,6 @@
 """Domain models for Pharmacy Service."""
 
-from sqlalchemy import Column, Integer, String, Float, DateTime, Enum, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, DateTime, Enum, ForeignKey, Boolean
 from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime
 import uuid
@@ -22,6 +22,7 @@ class Pharmaceutical(Base):
     code = Column(String, unique=True, index=True, nullable=False)
     description = Column(String, nullable=False)
     critical_level = Column(Integer, default=10, nullable=False)
+    is_deleted = Column(Boolean, default=False)
 
     lots = relationship("MedicalLot", back_populates="pharmaceutical", cascade="all, delete-orphan")
 
@@ -34,6 +35,7 @@ class MedicalLot(Base):
     expiry_date = Column(DateTime(timezone=True), nullable=False)
     quantity = Column(Integer, default=0, nullable=False)
     unit_cost = Column(Float, nullable=False)
+    is_deleted = Column(Boolean, default=False)
 
     pharmaceutical = relationship("Pharmaceutical", back_populates="lots")
     movements = relationship("StockMovement", back_populates="lot", cascade="all, delete-orphan")

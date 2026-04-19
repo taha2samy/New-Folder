@@ -1,6 +1,7 @@
 """gRPC Handlers for Pharmacy Service."""
 
 import logging
+import functools
 import grpc
 from datetime import datetime
 from generated import pharmacy_pb2, pharmacy_pb2_grpc
@@ -9,6 +10,22 @@ from app.events.producers import PharmacyEventProducer
 
 logger = logging.getLogger(__name__)
 
+def require_roles(allowed_roles, custom_message=None):
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(self, request, context):
+            user_id, roles_str, token = self._extract_context(context)
+            user_roles = [r.strip() for r in roles_str.split(",") if r.strip()]
+            
+            has_access = any(r in user_roles for r in allowed_roles)
+            if not has_access:
+                msg = custom_message or f"Security: User lacks required role {allowed_roles}"
+                await context.abort(grpc.StatusCode.PERMISSION_DENIED, msg)
+                
+            return await func(self, request, context)
+        return wrapper
+    return decorator
+
 class PharmacyServiceHandler(pharmacy_pb2_grpc.PharmacyServiceServicer):
     def __init__(self, db_session_factory, event_producer: PharmacyEventProducer):
         self.db_session_factory = db_session_factory
@@ -16,8 +33,9 @@ class PharmacyServiceHandler(pharmacy_pb2_grpc.PharmacyServiceServicer):
 
     def _extract_context(self, context: grpc.aio.ServicerContext):
         metadata = dict(context.invocation_metadata())
-        return metadata.get("x-user-id", ""), metadata.get("x-user-role", ""), metadata.get("x-jwt-token", "")
+        return metadata.get("x-user-id", ""), metadata.get("x-user-roles", ""), metadata.get("x-jwt-token", "")
 
+    @require_roles(["PHARMACY_VIEW", "DOCTOR", "NURSE", "ADMIN"])
     async def GetStockLevel(self, request, context):
         try:
             async with self.db_session_factory() as session:
@@ -47,8 +65,9 @@ class PharmacyServiceHandler(pharmacy_pb2_grpc.PharmacyServiceServicer):
             logger.error(f"GetStockLevel Error: {e}")
             await context.abort(grpc.StatusCode.INTERNAL, "Error retrieving stock level.")
 
+    @require_roles(["STOCK_MANAGER", "ADMIN"], custom_message="Access Denied: Stock Management restricted to Managers")
     async def AddStock(self, request, context):
-        user_id, role, token = self._extract_context(context)
+        user_id, roles_str, token = self._extract_context(context)
         try:
             expiry_dt = datetime.strptime(request.expiry_date, "%Y-%m-%d")
         except ValueError:
@@ -84,8 +103,9 @@ class PharmacyServiceHandler(pharmacy_pb2_grpc.PharmacyServiceServicer):
             logger.error(f"AddStock Error: {e}")
             await context.abort(grpc.StatusCode.INTERNAL, "Error adding stock.")
 
+    @require_roles(["PHARMACY_DISPENSE", "DOCTOR", "ADMIN"])
     async def DispenseMedicine(self, request, context):
-        user_id, role, token = self._extract_context(context)
+        user_id, roles_str, token = self._extract_context(context)
         try:
             dispensed_details = []
             async with self.db_session_factory() as session:
@@ -112,7 +132,8 @@ class PharmacyServiceHandler(pharmacy_pb2_grpc.PharmacyServiceServicer):
                     patient_id=request.patient_id,
                     medical_id=request.pharmaceutical_id,
                     quantity_dispensed=detail['quantity'],
-                    unit_cost=detail['unit_cost']
+                    unit_cost=detail['unit_cost'],
+                    actor_id=user_id
                 )
 
             return pharmacy_pb2.DispenseResponse(
@@ -128,8 +149,9 @@ class PharmacyServiceHandler(pharmacy_pb2_grpc.PharmacyServiceServicer):
             logger.error(f"DispenseMedicine Error: {e}")
             await context.abort(grpc.StatusCode.INTERNAL, "Error dispensing medicine.")
 
+    @require_roles(["PHARMACY_VIEW", "DOCTOR", "ADMIN"])
     async def GetPatientMedications(self, request, context):
-        user_id, role, token = self._extract_context(context)
+        user_id, roles_str, token = self._extract_context(context)
         try:
             async with self.db_session_factory() as session:
                 repo = PharmacyRepository(session)
@@ -158,3 +180,9 @@ class PharmacyServiceHandler(pharmacy_pb2_grpc.PharmacyServiceServicer):
         except Exception as e:
             logger.error(f"GetPatientMedications Error: {e}")
             await context.abort(grpc.StatusCode.INTERNAL, "Error retrieving patient medications.")
+
+    @require_roles(["INVENTORY_AUDITOR", "ADMIN"])
+    async def PerformInventory(self, request, context):
+        user_id, roles_str, token = self._extract_context(context)
+        logger.info(f"AUDIT - User:{user_id} | Action:PerformInventory | Lot:{request.lot_id}")
+        return pharmacy_pb2.InventoryResponse(success=True, discrepancy=0)

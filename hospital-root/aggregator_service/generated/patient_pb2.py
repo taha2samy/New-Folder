@@ -24,25 +24,27 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rpatient.proto\x12\x07patient\"\x1c\n\x0ePatientRequest\x12\n\n\x02id\x18\x01 \x01(\t\"\x8e\x01\n\x14\x43reatePatientRequest\x12\x0c\n\x04\x63ode\x18\x01 \x01(\t\x12\x11\n\tfull_name\x18\x02 \x01(\t\x12\x12\n\nbirth_date\x18\x03 \x01(\t\x12\x19\n\x03sex\x18\x04 \x01(\x0e\x32\x0c.patient.Sex\x12\x12\n\nblood_type\x18\x05 \x01(\t\x12\x12\n\nis_insured\x18\x06 \x01(\x08\",\n\x0bListRequest\x12\r\n\x05limit\x18\x01 \x01(\x05\x12\x0e\n\x06offset\x18\x02 \x01(\x05\"\x95\x01\n\x0fPatientResponse\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0c\n\x04\x63ode\x18\x02 \x01(\t\x12\x11\n\tfull_name\x18\x03 \x01(\t\x12\x12\n\nbirth_date\x18\x04 \x01(\t\x12\x19\n\x03sex\x18\x05 \x01(\x0e\x32\x0c.patient.Sex\x12\x12\n\nblood_type\x18\x06 \x01(\t\x12\x12\n\nis_insured\x18\x07 \x01(\x08\"V\n\x13PatientListResponse\x12*\n\x08patients\x18\x01 \x03(\x0b\x32\x18.patient.PatientResponse\x12\x13\n\x0btotal_count\x18\x02 \x01(\x05*3\n\x03Sex\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x08\n\x04MALE\x10\x01\x12\n\n\x06\x46\x45MALE\x10\x02\x12\t\n\x05OTHER\x10\x03\x32\xe3\x01\n\x0ePatientService\x12\x43\n\x0eGetPatientById\x12\x17.patient.PatientRequest\x1a\x18.patient.PatientResponse\x12H\n\rCreatePatient\x12\x1d.patient.CreatePatientRequest\x1a\x18.patient.PatientResponse\x12\x42\n\x0cListPatients\x12\x14.patient.ListRequest\x1a\x1c.patient.PatientListResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rpatient.proto\x12\x07patient\"\x1c\n\x0ePatientRequest\x12\n\n\x02id\x18\x01 \x01(\t\"\x8e\x01\n\x14\x43reatePatientRequest\x12\x0c\n\x04\x63ode\x18\x01 \x01(\t\x12\x11\n\tfull_name\x18\x02 \x01(\t\x12\x12\n\nbirth_date\x18\x03 \x01(\t\x12\x19\n\x03sex\x18\x04 \x01(\x0e\x32\x0c.patient.Sex\x12\x12\n\nblood_type\x18\x05 \x01(\t\x12\x12\n\nis_insured\x18\x06 \x01(\x08\"\x8c\x01\n\x14UpdatePatientRequest\x12\n\n\x02id\x18\x01 \x01(\t\x12\x11\n\tfull_name\x18\x02 \x01(\t\x12\x12\n\nbirth_date\x18\x03 \x01(\t\x12\x19\n\x03sex\x18\x04 \x01(\x0e\x32\x0c.patient.Sex\x12\x12\n\nblood_type\x18\x05 \x01(\t\x12\x12\n\nis_insured\x18\x06 \x01(\x08\",\n\x0bListRequest\x12\r\n\x05limit\x18\x01 \x01(\x05\x12\x0e\n\x06offset\x18\x02 \x01(\x05\"\x95\x01\n\x0fPatientResponse\x12\n\n\x02id\x18\x01 \x01(\t\x12\x0c\n\x04\x63ode\x18\x02 \x01(\t\x12\x11\n\tfull_name\x18\x03 \x01(\t\x12\x12\n\nbirth_date\x18\x04 \x01(\t\x12\x19\n\x03sex\x18\x05 \x01(\x0e\x32\x0c.patient.Sex\x12\x12\n\nblood_type\x18\x06 \x01(\t\x12\x12\n\nis_insured\x18\x07 \x01(\x08\"V\n\x13PatientListResponse\x12*\n\x08patients\x18\x01 \x03(\x0b\x32\x18.patient.PatientResponse\x12\x13\n\x0btotal_count\x18\x02 \x01(\x05*3\n\x03Sex\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x08\n\x04MALE\x10\x01\x12\n\n\x06\x46\x45MALE\x10\x02\x12\t\n\x05OTHER\x10\x03\x32\xad\x02\n\x0ePatientService\x12\x43\n\x0eGetPatientById\x12\x17.patient.PatientRequest\x1a\x18.patient.PatientResponse\x12H\n\rCreatePatient\x12\x1d.patient.CreatePatientRequest\x1a\x18.patient.PatientResponse\x12H\n\rUpdatePatient\x12\x1d.patient.UpdatePatientRequest\x1a\x18.patient.PatientResponse\x12\x42\n\x0cListPatients\x12\x14.patient.ListRequest\x1a\x1c.patient.PatientListResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'patient_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_SEX']._serialized_start=487
-  _globals['_SEX']._serialized_end=538
+  _globals['_SEX']._serialized_start=630
+  _globals['_SEX']._serialized_end=681
   _globals['_PATIENTREQUEST']._serialized_start=26
   _globals['_PATIENTREQUEST']._serialized_end=54
   _globals['_CREATEPATIENTREQUEST']._serialized_start=57
   _globals['_CREATEPATIENTREQUEST']._serialized_end=199
-  _globals['_LISTREQUEST']._serialized_start=201
-  _globals['_LISTREQUEST']._serialized_end=245
-  _globals['_PATIENTRESPONSE']._serialized_start=248
-  _globals['_PATIENTRESPONSE']._serialized_end=397
-  _globals['_PATIENTLISTRESPONSE']._serialized_start=399
-  _globals['_PATIENTLISTRESPONSE']._serialized_end=485
-  _globals['_PATIENTSERVICE']._serialized_start=541
-  _globals['_PATIENTSERVICE']._serialized_end=768
+  _globals['_UPDATEPATIENTREQUEST']._serialized_start=202
+  _globals['_UPDATEPATIENTREQUEST']._serialized_end=342
+  _globals['_LISTREQUEST']._serialized_start=344
+  _globals['_LISTREQUEST']._serialized_end=388
+  _globals['_PATIENTRESPONSE']._serialized_start=391
+  _globals['_PATIENTRESPONSE']._serialized_end=540
+  _globals['_PATIENTLISTRESPONSE']._serialized_start=542
+  _globals['_PATIENTLISTRESPONSE']._serialized_end=628
+  _globals['_PATIENTSERVICE']._serialized_start=684
+  _globals['_PATIENTSERVICE']._serialized_end=985
 # @@protoc_insertion_point(module_scope)

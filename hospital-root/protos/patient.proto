@@ -5,6 +5,7 @@ package patient;
 service PatientService {
   rpc GetPatientById(PatientRequest) returns (PatientResponse);
   rpc CreatePatient(CreatePatientRequest) returns (PatientResponse);
+  rpc UpdatePatient(UpdatePatientRequest) returns (PatientResponse);
   rpc ListPatients(ListRequest) returns (PatientListResponse);
 }
 
@@ -21,6 +22,15 @@ message PatientRequest {
 
 message CreatePatientRequest {
   string code = 1;
+  string full_name = 2;
+  string birth_date = 3;
+  Sex sex = 4;
+  string blood_type = 5;
+  bool is_insured = 6;
+}
+
+message UpdatePatientRequest {
+  string id = 1;
   string full_name = 2;
   string birth_date = 3;
   Sex sex = 4;

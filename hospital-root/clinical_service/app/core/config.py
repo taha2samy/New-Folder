@@ -18,3 +18,5 @@ class Settings(BaseSettings):
         env_prefix = "CLINICAL_SVC_"
 
 settings = Settings()
+
+

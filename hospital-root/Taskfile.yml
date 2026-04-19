@@ -1,0 +1,8 @@
+version: '3'
+
+tasks:
+  auth:init:
+    desc: "Installs python-keycloak and provisions the development realm"
+    cmds:
+      - pipenv install python-keycloak
+      - pipenv run python keycloak_setup/provision.py

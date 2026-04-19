@@ -39,6 +39,26 @@ services:
     volumes:
       - redpanda_data:/var/lib/redpanda/data
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    command: start-dev
+    env_file:
+      - .env
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak_db
+      KC_DB_USERNAME: ${POSTGRES_USER}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    ports:
+      - "8080:8080"
+    networks:
+      - hms_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   patient-service:
     build:
       context: ./patient_service
