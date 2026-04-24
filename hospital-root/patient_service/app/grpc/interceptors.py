@@ -2,7 +2,7 @@
 
 import grpc
 from typing import Callable, Any
-from app.core.security import decode_jwt_token, extract_roles
+from app.core.security import decode_jwt_token
 
 class AuthInterceptor(grpc.aio.ServerInterceptor):
     """
@@ -30,15 +30,12 @@ class AuthInterceptor(grpc.aio.ServerInterceptor):
             return self._abort(grpc.StatusCode.UNAUTHENTICATED, "Invalid or expired token.")
 
         user_id = decoded.get("sub")
-        roles = extract_roles(decoded)
-
         if not user_id:
             return self._abort(grpc.StatusCode.UNAUTHENTICATED, "Token missing required claims.")
 
         # Pass metadata dynamically by appending to invocation metadata to make it available to _extract_context
         new_metadata = list(handler_call_details.invocation_metadata)
         new_metadata.append(("x-user-id", str(user_id)))
-        new_metadata.append(("x-user-roles", ",".join(roles)))
         
         new_details = grpc.HandlerCallDetails(
             handler_call_details.method,

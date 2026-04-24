@@ -1,8 +1,4 @@
-"""gRPC server interceptor providing stateless JWT authentication.
-
-The interceptor validates the Authorization bearer token on every inbound call,
-extracts the subject and role claims, and forwards them as additional metadata
-entries (x-user-id, x-user-role, x-jwt-token) to the downstream handler.
+entries (x-user-id, x-jwt-token) to the downstream handler.
 """
 
 from typing import Any, Callable
@@ -36,18 +32,17 @@ class AuthInterceptor(grpc.aio.ServerInterceptor):
             return self._abort(grpc.StatusCode.UNAUTHENTICATED, "Invalid or expired JWT token.")
 
         user_id = decoded.get("sub")
-        role    = decoded.get("role")
 
-        if not user_id or not role:
+        if not user_id:
             return self._abort(
                 grpc.StatusCode.UNAUTHENTICATED,
-                "JWT token is missing required claims (sub, role).",
+                "JWT token is missing required search claim (sub).",
             )
 
         # Propagate claims to the handler via request metadata.
         enriched_metadata = list(handler_call_details.invocation_metadata)
         enriched_metadata.append(("x-user-id",    str(user_id)))
-        enriched_metadata.append(("x-user-role",  str(role)))
+        enriched_metadata.append(("x-user-id",    str(user_id)))
         enriched_metadata.append(("x-jwt-token",  str(token)))
 
         new_details = grpc.HandlerCallDetails(

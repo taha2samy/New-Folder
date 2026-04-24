@@ -8,7 +8,7 @@ from .models import Encounter, VitalSign, Diagnosis
 
 class ClinicalRepositoryProtocol(Protocol):
     async def create_encounter(self, encounter: Encounter) -> Encounter: ...
-    async def get_patient_encounters(self, patient_id: str, doctor_id: str, roles: List[str]) -> List[Encounter]: ...
+    async def get_patient_encounters(self, patient_id: str) -> List[Encounter]: ...
     async def has_active_admission(self, patient_id: str) -> bool: ...
     async def get_encounter_by_id(self, encounter_id: str) -> Encounter: ...
     async def suspend_patient_encounters(self, patient_id: str) -> None: ...
@@ -17,31 +17,19 @@ class ClinicalRepository(ClinicalRepositoryProtocol):
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    def _apply_rls(self, stmt, doctor_id: str, roles: List[str]):
+    def _apply_rls(self, stmt):
         """
-        Advanced RLS: ChiefOfStaff and Admin can see all encounters.
-        Doctors can only see encounters they authored.
-        Global Filter: Enforce soft delete pattern.
+        Global Filter: Enforce soft delete pattern. Role-based filtering is disabled.
         """
         stmt = stmt.where(Encounter.is_deleted == False)
-        
-        roles_lower = [r.lower() for r in roles]
-        if "admin" in roles_lower or "chiefofstaff" in roles_lower:
-            return stmt  # Bypass limits
-            
-        if "doctor" in roles_lower:
-            stmt = stmt.where(Encounter.doctor_id == doctor_id)
-        elif len(roles_lower) == 1 and "patient" in roles_lower:
-            stmt = stmt.where(Encounter.patient_id == doctor_id)  # here doctor_id carries user_id scalar
-            
         return stmt
 
-    async def get_patient_encounters(self, patient_id: str, doctor_id: str, roles: List[str]) -> List[Encounter]:
+    async def get_patient_encounters(self, patient_id: str) -> List[Encounter]:
         stmt = select(Encounter).where(Encounter.patient_id == patient_id).options(
             selectinload(Encounter.diagnoses),
             selectinload(Encounter.vitals)
         )
-        stmt = self._apply_rls(stmt, doctor_id, roles)
+        stmt = self._apply_rls(stmt)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 

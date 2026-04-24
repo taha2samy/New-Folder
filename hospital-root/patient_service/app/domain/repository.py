@@ -13,39 +13,34 @@ class PatientRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    def _apply_rls(self, stmt, user_role: str, user_id: str):
+    def _apply_rls(self, stmt):
         """
-        Applies Row-Level Security and Soft Delete constraints.
-        If user_role is 'Patient', restrict to id == user_id.
+        Applies Soft Delete constraints. Role-based filtering is disabled for testing.
         """
         stmt = stmt.where(Patient.is_deleted == False)
-        if user_role.lower() == "patient":
-            stmt = stmt.where(Patient.id == user_id)
         return stmt
 
-    async def get_by_id(self, patient_id: str, user_role: str, user_id: str) -> Optional[Patient]:
+    async def get_by_id(self, patient_id: str) -> Optional[Patient]:
         """
-        Fetches a single patient by ID subjected to RLS.
+        Fetches a single patient by ID.
 
         Args:
             patient_id: The UUID of the patient.
-            user_role: Role from the JWT context.
-            user_id: User UUID from the JWT context.
 
         Returns:
-            Patient entity if found and authorized, else None.
+            Patient entity if found, else None.
         """
         stmt = select(Patient).where(Patient.id == patient_id)
-        stmt = self._apply_rls(stmt, user_role, user_id)
+        stmt = self._apply_rls(stmt)
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
-    async def list_patients(self, limit: int, offset: int, user_role: str, user_id: str) -> List[Patient]:
+    async def list_patients(self, limit: int, offset: int) -> List[Patient]:
         """
-        Lists patients subjected to RLS with pagination.
+        Lists patients with pagination.
         """
         stmt = select(Patient)
-        stmt = self._apply_rls(stmt, user_role, user_id)
+        stmt = self._apply_rls(stmt)
         stmt = stmt.limit(limit).offset(offset)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())

@@ -12,26 +12,7 @@ from app.grpc_clients.master_data_client import MasterDataClient
 
 logger = logging.getLogger(__name__)
 
-def require_roles(allowed_roles):
-    def decorator(func):
-        @functools.wraps(func)
-        async def wrapper(self, request, context):
-            user_id, roles_str, token, trace_id = self._extract_context(context)
-            user_roles = [r.strip() for r in roles_str.split(",") if r.strip()]
-            
-            has_access = any(r in user_roles for r in allowed_roles)
-            if not has_access:
-                await context.abort(
-                    grpc.StatusCode.PERMISSION_DENIED, 
-                    f"Security: User lacks required role {allowed_roles}"
-                )
-            
-            # Audit logging as required
-            logger.info(f"AUDIT - User:{user_id} | Action:{func.__name__}")
-            
-            return await func(self, request, context)
-        return wrapper
-    return decorator
+
 
 class ClinicalEncounterServiceHandler(clinical_pb2_grpc.ClinicalEncounterServiceServicer):
     def __init__(self, db_session_factory, event_producer: EncounterEventProducer, patient_client: PatientServiceClient, master_data_client: MasterDataClient):
@@ -42,7 +23,7 @@ class ClinicalEncounterServiceHandler(clinical_pb2_grpc.ClinicalEncounterService
 
     def _extract_context(self, context: grpc.aio.ServicerContext):
         metadata = dict(context.invocation_metadata())
-        return metadata.get("x-user-id", ""), metadata.get("x-user-roles", ""), metadata.get("x-jwt-token", ""), metadata.get("x-trace-id", "unknown")
+        return metadata.get("x-user-id", ""), metadata.get("x-jwt-token", ""), metadata.get("x-trace-id", "unknown")
 
     async def _validate_patient(self, patient_id: str, jwt_token: str, context: grpc.aio.ServicerContext):
         patient = await self.patient_client.get_patient_by_id(patient_id, jwt_token)
@@ -50,9 +31,9 @@ class ClinicalEncounterServiceHandler(clinical_pb2_grpc.ClinicalEncounterService
             await context.abort(grpc.StatusCode.FAILED_PRECONDITION, f"Patient {patient_id} not found or deleted limit.")
         return patient
 
-    @require_roles(["OPD_WRITE", "DOCTOR", "ADMIN"])
     async def CreateOPDVisit(self, request, context):
-        user_id, roles_str, token, trace_id = self._extract_context(context)
+        user_id, _, token, trace_id = self._extract_context(context)
+        logger.info(f"AUDIT - User:{user_id} | Action:CreateOPDVisit")
         logger.info(f"[Trace: {trace_id}] User {user_id} creating OPD for {request.patient_id}")
         await self._validate_patient(request.patient_id, token, context)
 
@@ -82,9 +63,9 @@ class ClinicalEncounterServiceHandler(clinical_pb2_grpc.ClinicalEncounterService
             logger.error(f"OPD Error: {e}")
             await context.abort(grpc.StatusCode.INTERNAL, "Error creating OPD.")
 
-    @require_roles(["ADMISSION_ADMIN", "ADMIN"])
     async def StartAdmission(self, request, context):
-        user_id, roles_str, token, trace_id = self._extract_context(context)
+        user_id, _, token, trace_id = self._extract_context(context)
+        logger.info(f"AUDIT - User:{user_id} | Action:StartAdmission")
         logger.info(f"[Trace: {trace_id}] User {user_id} starting Admission for {request.patient_id}")
         await self._validate_patient(request.patient_id, token, context)
 
@@ -118,9 +99,9 @@ class ClinicalEncounterServiceHandler(clinical_pb2_grpc.ClinicalEncounterService
             logger.error(f"Admission Error: {e}")
             await context.abort(grpc.StatusCode.INTERNAL, "Error starting admission.")
 
-    @require_roles(["ADMISSION_ADMIN", "ADMIN"])
     async def CompleteEncounter(self, request, context):
-        user_id, roles_str, token, trace_id = self._extract_context(context)
+        user_id, _, token, trace_id = self._extract_context(context)
+        logger.info(f"AUDIT - User:{user_id} | Action:CompleteEncounter")
         
         # Validate Disease IDs against Master Data Service
         if request.diagnoses_ids:
@@ -149,36 +130,35 @@ class ClinicalEncounterServiceHandler(clinical_pb2_grpc.ClinicalEncounterService
             logger.error(f"Complete Encounter Error: {e}")
             await context.abort(grpc.StatusCode.INTERNAL, "Error completing encounter.")
 
-    @require_roles(["CLINICAL_VIEW", "DOCTOR", "PATIENT", "ADMIN"])
     async def GetPatientEncounters(self, request, context):
-        user_id, roles_str, token, trace_id = self._extract_context(context)
-        user_roles = [r.strip() for r in roles_str.split(",") if r.strip()]
+        user_id, _, token, trace_id = self._extract_context(context)
+        logger.info(f"AUDIT - User:{user_id} | Action:GetPatientEncounters")
         try:
             async with self.db_session_factory() as session:
                 repo = ClinicalRepository(session)
-                encounters = await repo.get_patient_encounters(request.patient_id, user_id, user_roles)
+                encounters = await repo.get_patient_encounters(request.patient_id)
                 for enc in encounters:
                     yield self._map_to_proto(enc)
         except Exception as e:
             logger.error(f"Stream Error: {e}")
             await context.abort(grpc.StatusCode.INTERNAL, "Error streaming.")
 
-    @require_roles(["OPD_WRITE", "DOCTOR", "ADMIN"])
     async def CreateAppointment(self, request, context):
-        user_id, roles_str, token, trace_id = self._extract_context(context)
+        user_id, _, token, trace_id = self._extract_context(context)
+        logger.info(f"AUDIT - User:{user_id} | Action:CreateAppointment")
         logger.info(f"[Trace: {trace_id}] User {user_id} creating appointment for {request.patient_id}")
         # Note: Actual repository injection of Appointment domain model would happen here
         return clinical_pb2.AppointmentResponse(id="sched-mock", status="SCHEDULED")
 
-    @require_roles(["SURGERY_SCHEDULE", "ADMIN"])
     async def ScheduleSurgery(self, request, context):
-        user_id, roles_str, token, trace_id = self._extract_context(context)
+        user_id, _, token, trace_id = self._extract_context(context)
+        logger.info(f"AUDIT - User:{user_id} | Action:ScheduleSurgery")
         logger.info(f"[Trace: {trace_id}] User {user_id} scheduling surgery for {request.patient_id}")
         return clinical_pb2.SurgeryResponse(id="surg-mock", status="SCHEDULED")
 
-    @require_roles(["SURGERY_SCHEDULE", "ADMIN"])
     async def RecordSurgery(self, request, context):
-        user_id, roles_str, token, trace_id = self._extract_context(context)
+        user_id, _, token, trace_id = self._extract_context(context)
+        logger.info(f"AUDIT - User:{user_id} | Action:RecordSurgery")
         logger.info(f"[Trace: {trace_id}] User {user_id} recording surgery {request.surgery_id}")
         return clinical_pb2.SurgeryResponse(id=request.surgery_id, status="COMPLETED")
 

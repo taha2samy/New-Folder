@@ -70,11 +70,10 @@ class MasterDataServiceHandler(master_data_pb2_grpc.MasterDataServiceServicer):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _extract_caller(context: grpc.aio.ServicerContext) -> tuple[str, str]:
+    def _extract_caller(self, context: grpc.aio.ServicerContext) -> str:
         """Extract authenticated caller claims injected by AuthInterceptor."""
         metadata = dict(context.invocation_metadata())
-        return metadata.get("x-user-id", ""), metadata.get("x-user-role", "")
+        return metadata.get("x-user-id", "")
 
     # ------------------------------------------------------------------
     # Read RPCs
@@ -253,7 +252,7 @@ class MasterDataServiceHandler(master_data_pb2_grpc.MasterDataServiceServicer):
 
     async def UpsertWard(self, request, context):
         """Create or update a Ward record and broadcast a cache-invalidation event."""
-        admin_id, _ = self._extract_caller(context)
+        user_id = self._extract_caller(context)
         is_create   = not request.ward_id
 
         try:
@@ -266,7 +265,7 @@ class MasterDataServiceHandler(master_data_pb2_grpc.MasterDataServiceServicer):
                         name=request.name,
                         beds_count=request.beds_count,
                         is_opd=request.is_opd,
-                        admin_id=admin_id,
+                        admin_id=user_id,
                     )
 
             # Invalidate the ward list cache after successful commit.
@@ -276,13 +275,13 @@ class MasterDataServiceHandler(master_data_pb2_grpc.MasterDataServiceServicer):
             self._event_producer.broadcast_reference_data_changed(
                 entity_type="WARD",
                 action="CREATE" if is_create else "UPDATE",
-                admin_id=admin_id,
+                admin_id=user_id,
                 entity_id=ward.id,
             )
             logger.info(
-                "Ward %s by admin=%s: id=%s code=%s",
+                "Ward %s by user=%s: id=%s code=%s",
                 "created" if is_create else "updated",
-                admin_id,
+                user_id,
                 ward.id,
                 ward.code,
             )
@@ -305,7 +304,7 @@ class MasterDataServiceHandler(master_data_pb2_grpc.MasterDataServiceServicer):
 
     async def UpsertDisease(self, request, context):
         """Create or update a Disease record and broadcast a cache-invalidation event."""
-        admin_id, _ = self._extract_caller(context)
+        user_id = self._extract_caller(context)
         is_create   = not request.disease_id
 
         try:
@@ -317,7 +316,7 @@ class MasterDataServiceHandler(master_data_pb2_grpc.MasterDataServiceServicer):
                         code=request.code,
                         description=request.description,
                         disease_type_code=request.disease_type,
-                        admin_id=admin_id,
+                        admin_id=user_id,
                     )
 
             # Invalidate all disease cache entries.
@@ -329,13 +328,13 @@ class MasterDataServiceHandler(master_data_pb2_grpc.MasterDataServiceServicer):
             self._event_producer.broadcast_reference_data_changed(
                 entity_type="DISEASE",
                 action="CREATE" if is_create else "UPDATE",
-                admin_id=admin_id,
+                admin_id=user_id,
                 entity_id=disease.id,
             )
             logger.info(
-                "Disease %s by admin=%s: id=%s code=%s",
+                "Disease %s by user=%s: id=%s code=%s",
                 "created" if is_create else "updated",
-                admin_id,
+                user_id,
                 disease.id,
                 disease.code,
             )

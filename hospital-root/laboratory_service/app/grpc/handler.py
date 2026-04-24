@@ -34,14 +34,13 @@ class LaboratoryServiceHandler(laboratory_pb2_grpc.LaboratoryServiceServicer):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _extract_caller(context: grpc.aio.ServicerContext) -> tuple[str, str]:
+    def _extract_caller(context: grpc.aio.ServicerContext) -> str:
         """
         Extract authenticated caller claims injected by AuthInterceptor.
-        Returns (user_id, user_role).
+        Returns user_id.
         """
         metadata = dict(context.invocation_metadata())
-        return metadata.get("x-user-id", ""), metadata.get("x-user-role", "")
+        return metadata.get("x-user-id", "")
 
     @staticmethod
     def _to_timestamp(dt) -> int:
@@ -59,7 +58,7 @@ class LaboratoryServiceHandler(laboratory_pb2_grpc.LaboratoryServiceServicer):
         Post-commit, a LabRequestCreated event is broadcast to Kafka so that
         billing_service can create the corresponding charge.
         """
-        user_id, _ = self._extract_caller(context)
+        user_id = self._extract_caller(context)
         
         # Extract JWT from context (AuthInterceptor injected it as "authorization" or we can parse ctx)
         metadata = dict(context.invocation_metadata())

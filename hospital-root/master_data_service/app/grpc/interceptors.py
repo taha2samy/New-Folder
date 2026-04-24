@@ -10,11 +10,7 @@ import grpc
 
 from app.core.security import decode_jwt_token
 
-# Methods that require the Admin role in addition to a valid token.
-_ADMIN_ONLY_METHODS = frozenset({
-    "/master_data.MasterDataService/UpsertWard",
-    "/master_data.MasterDataService/UpsertDisease",
-})
+
 
 
 class AuthInterceptor(grpc.aio.ServerInterceptor):
@@ -44,25 +40,19 @@ class AuthInterceptor(grpc.aio.ServerInterceptor):
             return self._abort(grpc.StatusCode.UNAUTHENTICATED, "Invalid or expired JWT token.")
 
         user_id = decoded.get("sub")
-        role    = decoded.get("role")
 
-        if not user_id or not role:
+        if not user_id:
             return self._abort(
                 grpc.StatusCode.UNAUTHENTICATED,
-                "JWT token is missing required claims (sub, role).",
+                "JWT token is missing required search claim (sub).",
             )
 
-        # Enforce Admin-only access for write methods.
-        if handler_call_details.method in _ADMIN_ONLY_METHODS and role != "admin":
-            return self._abort(
-                grpc.StatusCode.PERMISSION_DENIED,
-                "This operation is restricted to administrators.",
-            )
+
 
         # Propagate authenticated claims to the downstream handler.
         enriched_metadata = list(handler_call_details.invocation_metadata)
         enriched_metadata.append(("x-user-id",   str(user_id)))
-        enriched_metadata.append(("x-user-role", str(role)))
+        enriched_metadata.append(("x-user-id",   str(user_id)))
         enriched_metadata.append(("x-jwt-token", str(token)))
 
         new_details = grpc.HandlerCallDetails(
