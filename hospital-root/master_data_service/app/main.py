@@ -18,7 +18,7 @@ from app.domain.models import Base
 from app.events.producers import MasterDataEventProducer
 from app.grpc.handler import MasterDataServiceHandler
 from app.grpc.interceptors import AuthInterceptor
-from generated import master_data_pb2_grpc
+from app.generated import master_data_pb2_grpc
 
 logging.basicConfig(
     level=logging.INFO,

@@ -3,7 +3,7 @@
 import grpc
 import logging
 from typing import Optional, Dict, Any
-from generated import billing_pb2, billing_pb2_grpc
+from app.generated import billing_pb2, billing_pb2_grpc
 
 logger = logging.getLogger(__name__)
 

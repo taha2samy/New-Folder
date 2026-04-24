@@ -21,9 +21,9 @@ service MasterDataService {
   rpc GetOperationTypes (EmptyRequest)         returns (OperationTypesResponse);
   // Returns registered pharmaceutical suppliers.
   rpc GetSuppliers      (EmptyRequest)         returns (SuppliersResponse);
-  // Creates or updates a Ward record. Restricted to the Admin role.
+  // Creates or updates a Ward record.
   rpc UpsertWard        (UpsertWardRequest)    returns (WardMessage);
-  // Creates or updates a Disease record. Restricted to the Admin role.
+  // Creates or updates a Disease record.
   rpc UpsertDisease     (UpsertDiseaseRequest) returns (DiseaseMessage);
 }
 

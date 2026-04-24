@@ -2,30 +2,37 @@ version: '3'
 
 tasks:
   setup:
-    desc: Install dependencies
+    desc: "Install dependencies (pipenv)"
     cmds:
       - pipenv install --dev
 
   generate:
-    desc: Compiles .proto files into the generated/ folder
+    desc: "Generate gRPC stubs from central protos"
     cmds:
-      - mkdir -p generated
-      - pipenv run python -m grpc_tools.protoc -I../protos --python_out=./generated --grpc_python_out=./generated ../protos/pharmacy.proto
-      - touch generated/__init__.py
-      - sed -i 's/import pharmacy_pb2 as pharmacy__pb2/from . import pharmacy_pb2 as pharmacy__pb2/' generated/pharmacy_pb2_grpc.py
+      - mkdir -p app/generated
+      - touch app/generated/__init__.py
+      - pipenv run python -m grpc_tools.protoc -I../protos --python_out=app/generated --grpc_python_out=app/generated ../protos/*.proto
+      - sed -i.bak 's/import \([a-z0-9_]*_pb2\)/from . import \1/g' app/generated/*_pb2_grpc.py
+      - rm -f app/generated/*.bak
 
   migrate:
-    desc: Apply Alembic database migrations
-    dir: '{{.TASKFILE_DIR}}'
+    desc: "Run database migrations"
     cmds:
       - PYTHONPATH=. pipenv run alembic upgrade head
 
   run:
-    desc: Run the gRPC server locally
+    desc: "Start the local dev server"
     cmds:
       - PYTHONPATH=. pipenv run python -m app.main
 
-  run:dev:
-    desc: Run the gRPC server locally (dev alias)
+  test:
+    desc: "Run unit/integration tests"
     cmds:
-      - PYTHONPATH=. pipenv run python -m app.main
+      - pipenv run pytest
+
+  clean:
+    desc: "Wipe generated files and caches"
+    cmds:
+      - rm -rf app/generated
+      - find . -type d -name "__pycache__" -exec rm -rf {} +
+      - find . -type d -name ".pytest_cache" -exec rm -rf {} +

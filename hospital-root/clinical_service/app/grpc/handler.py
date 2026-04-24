@@ -3,7 +3,7 @@
 import logging
 import functools
 import grpc
-from generated import clinical_pb2, clinical_pb2_grpc
+from app.generated import clinical_pb2, clinical_pb2_grpc
 from app.domain.repository import ClinicalRepository
 from app.domain.models import Encounter, VitalSign, Diagnosis
 from app.events.producers import EncounterEventProducer

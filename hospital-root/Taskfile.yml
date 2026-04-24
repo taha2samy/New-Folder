@@ -1,8 +1,61 @@
 version: '3'
 
+includes:
+  patient: ./patient_service/Taskfile.yml
+  clinical: ./clinical_service/Taskfile.yml
+  pharmacy: ./pharmacy_service/Taskfile.yml
+  billing: ./billing_service/Taskfile.yml
+  lab: ./laboratory_service/Taskfile.yml
+  master: ./master_data_service/Taskfile.yml
+  aggregator: ./aggregator_service/Taskfile.yml
+
 tasks:
-  auth:init:
-    desc: "Installs python-keycloak and provisions the development realm"
+  setup:all:
+    desc: "Install dependencies for all services"
     cmds:
-      - pipenv install python-keycloak
-      - pipenv run python keycloak_setup/provision.py
+      - task patient:setup
+      - task clinical:setup
+      - task pharmacy:setup
+      - task billing:setup
+      - task lab:setup
+      - task master:setup
+      - task aggregator:setup
+
+  generate:all:
+    desc: "Distribute and compile proto contracts to all services"
+    cmds:
+      - task patient:generate
+      - task clinical:generate
+      - task pharmacy:generate
+      - task billing:generate
+      - task lab:generate
+      - task master:generate
+      - task aggregator:generate
+
+  migrate:all:
+    desc: "Run migrations across all databases"
+    cmds:
+      - task patient:migrate
+      - task clinical:migrate
+      - task pharmacy:migrate
+      - task billing:migrate
+      - task lab:migrate
+      - task master:migrate
+      - task aggregator:migrate
+
+  up:
+    desc: "Start all services and infrastructure via docker-compose"
+    cmds:
+      - task generate:all
+      - docker-compose up -d --build
+
+  clean:all:
+    desc: "Wipe all generated files and caches"
+    cmds:
+      - task patient:clean
+      - task clinical:clean
+      - task pharmacy:clean
+      - task billing:clean
+      - task lab:clean
+      - task master:clean
+      - task aggregator:clean

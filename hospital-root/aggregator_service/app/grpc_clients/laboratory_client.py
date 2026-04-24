@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 
 import grpc
 
-from generated import laboratory_pb2, laboratory_pb2_grpc
+from app.generated import laboratory_pb2, laboratory_pb2_grpc
 
 logger = logging.getLogger(__name__)
 

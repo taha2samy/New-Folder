@@ -17,7 +17,7 @@ from app.events.producers import LaboratoryEventProducer
 from app.grpc.handler import LaboratoryServiceHandler
 from app.grpc.interceptors import AuthInterceptor
 from app.grpc_clients.master_data_client import MasterDataClient
-from generated import laboratory_pb2_grpc
+from app.generated import laboratory_pb2_grpc
 
 logging.basicConfig(
     level=logging.INFO,

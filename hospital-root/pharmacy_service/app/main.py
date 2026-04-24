@@ -17,7 +17,7 @@ from app.core.config import settings
 from app.grpc.handler import PharmacyServiceHandler
 from app.grpc.interceptors import AuthInterceptor
 from app.events.producers import PharmacyEventProducer
-from generated import pharmacy_pb2_grpc
+from app.generated import pharmacy_pb2_grpc
 
 logging.basicConfig(
     level=logging.INFO,

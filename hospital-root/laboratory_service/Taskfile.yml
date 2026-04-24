@@ -2,30 +2,37 @@ version: '3'
 
 tasks:
   setup:
-    desc: Install all service dependencies via Pipenv
+    desc: "Install dependencies (pipenv)"
     cmds:
       - pipenv install --dev
 
   generate:
-    desc: Compiles .proto files into the generated/ folder
+    desc: "Generate gRPC stubs from central protos"
     cmds:
-      - mkdir -p generated
-      - pipenv run python -m grpc_tools.protoc -I../protos --python_out=./generated --grpc_python_out=./generated ../protos/laboratory.proto ../protos/master_data.proto
-      - touch generated/__init__.py
-      - sed -i 's/import laboratory_pb2 as laboratory__pb2/from . import laboratory_pb2 as laboratory__pb2/' generated/laboratory_pb2_grpc.py
-      - sed -i 's/import master_data_pb2 as master__data__pb2/from . import master_data_pb2 as master__data__pb2/' generated/master_data_pb2_grpc.py
+      - mkdir -p app/generated
+      - touch app/generated/__init__.py
+      - pipenv run python -m grpc_tools.protoc -I../protos --python_out=app/generated --grpc_python_out=app/generated ../protos/*.proto
+      - sed -i.bak 's/import \([a-z0-9_]*_pb2\)/from . import \1/g' app/generated/*_pb2_grpc.py
+      - rm -f app/generated/*.bak
 
   migrate:
-    desc: Apply Alembic database migrations
+    desc: "Run database migrations"
     cmds:
-      - pipenv run alembic upgrade head
+      - PYTHONPATH=. pipenv run alembic upgrade head
 
   run:
-    desc: Start the laboratory gRPC server locally
+    desc: "Start the local dev server"
     cmds:
       - PYTHONPATH=. pipenv run python -m app.main
 
-  run:dev:
-    desc: Start the laboratory gRPC server locally (dev alias)
+  test:
+    desc: "Run unit/integration tests"
     cmds:
-      - PYTHONPATH=. pipenv run python -m app.main
+      - pipenv run pytest
+
+  clean:
+    desc: "Wipe generated files and caches"
+    cmds:
+      - rm -rf app/generated
+      - find . -type d -name "__pycache__" -exec rm -rf {} +
+      - find . -type d -name ".pytest_cache" -exec rm -rf {} +

@@ -6,7 +6,7 @@ from app.core.security import decode_jwt_token
 
 class AuthInterceptor(grpc.aio.ServerInterceptor):
     """
-    Validates JWT and injects user_id and role into context.
+    Validates JWT and injects user_id into context.
     """
 
     async def intercept_service(
@@ -15,7 +15,7 @@ class AuthInterceptor(grpc.aio.ServerInterceptor):
         handler_call_details: grpc.HandlerCallDetails
     ) -> Any:
         """
-        Intercepts the gRPC call to check authorization.
+        Intercepts the gRPC call to check authentication.
         """
         metadata = dict(handler_call_details.invocation_metadata)
         auth_header = metadata.get("authorization")

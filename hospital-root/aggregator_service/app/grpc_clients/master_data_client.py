@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 
 import grpc
 
-from generated import master_data_pb2, master_data_pb2_grpc
+from app.generated import master_data_pb2, master_data_pb2_grpc
 from app.core.security import generate_jwt_token
 
 logger = logging.getLogger(__name__)

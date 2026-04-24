@@ -5,7 +5,7 @@ import logging
 import grpc
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from generated import clinical_pb2_grpc
+from app.generated import clinical_pb2_grpc
 from app.core.config import settings
 from app.grpc.interceptors import AuthInterceptor
 from app.grpc.handler import ClinicalEncounterServiceHandler

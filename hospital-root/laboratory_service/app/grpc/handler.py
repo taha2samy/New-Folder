@@ -10,7 +10,7 @@ import logging
 
 import grpc
 
-from generated import laboratory_pb2, laboratory_pb2_grpc
+from app.generated import laboratory_pb2, laboratory_pb2_grpc
 from app.domain.repository import (
     DuplicateResultError,
     LabRequestNotFoundError,

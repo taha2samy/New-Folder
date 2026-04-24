@@ -3,7 +3,7 @@
 import logging
 from typing import Dict, Any, List, Optional
 import grpc
-from generated import pharmacy_pb2, pharmacy_pb2_grpc
+from app.generated import pharmacy_pb2, pharmacy_pb2_grpc
 
 logger = logging.getLogger(__name__)
 

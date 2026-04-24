@@ -4,7 +4,7 @@ import asyncio
 import logging
 import grpc
 from typing import Optional
-from generated import patient_pb2, patient_pb2_grpc
+from app.generated import patient_pb2, patient_pb2_grpc
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)

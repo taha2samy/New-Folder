@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional
 
 import grpc
 
-from generated import master_data_pb2, master_data_pb2_grpc
+from app.generated import master_data_pb2, master_data_pb2_grpc
 from app.domain.models import ProcedureTypeEnum
 from app.domain.repository import EntityNotFoundError, MasterDataRepository
 from app.events.producers import MasterDataEventProducer

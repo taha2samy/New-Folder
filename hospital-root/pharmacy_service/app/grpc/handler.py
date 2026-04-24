@@ -4,7 +4,7 @@ import logging
 import functools
 import grpc
 from datetime import datetime
-from generated import pharmacy_pb2, pharmacy_pb2_grpc
+from app.generated import pharmacy_pb2, pharmacy_pb2_grpc
 from app.domain.repository import PharmacyRepository, InadequateStockError
 from app.events.producers import PharmacyEventProducer
 

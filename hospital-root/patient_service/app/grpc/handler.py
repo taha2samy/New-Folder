@@ -4,7 +4,7 @@ import logging
 import functools
 import grpc
 from datetime import datetime, timezone
-from generated import patient_pb2, patient_pb2_grpc
+from app.generated import patient_pb2, patient_pb2_grpc
 from app.domain.repository import PatientRepository
 from app.domain.models import Patient
 from app.events.producers import EventProducer

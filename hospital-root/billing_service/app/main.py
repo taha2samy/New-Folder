@@ -17,7 +17,7 @@ from app.core.config import settings
 from app.grpc.handler import BillingServiceHandler
 from app.grpc.interceptors import JWTInterceptor
 from app.events.consumers import BillingEventConsumer
-from generated import billing_pb2_grpc
+from app.generated import billing_pb2_grpc
 
 logging.basicConfig(
     level=logging.INFO,

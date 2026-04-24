@@ -3,7 +3,7 @@ import grpc
 from typing import Callable, Any
 from copy import copy
 
-from generated import billing_pb2, billing_pb2_grpc
+from app.generated import billing_pb2, billing_pb2_grpc
 from app.domain.repository import BillingRepository
 from decimal import Decimal
 
