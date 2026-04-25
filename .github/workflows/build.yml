@@ -45,7 +45,7 @@ jobs:
           
           pack build $APP_IMAGE \
             --path ./hospital-root/master_data_service \
-            --builder paketobuildpacks/builder-jammy-base \
+            --builder paketobuildpacks/builder-noble-base \
             --run-image ${{ env.CUSTOM_RUN_IMAGE }} \
-            --env BP_PYTHON_VERSION=3.10 \
+            --env BP_PYTHON_VERSION=3.10.16 \
             --publish
