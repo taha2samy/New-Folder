@@ -125,7 +125,6 @@ jobs:
           pack build $APP_IMAGE \
             --path ./hospital-root/${{ matrix.service }} \
             --builder paketobuildpacks/ubuntu-noble-builder \
-            --buildpack paketo-buildpacks/python \
             --run-image $RUN_IMAGE \
             --env BP_PYTHON_VERSION=3.11 \
             --publish
@@ -176,6 +175,8 @@ jobs:
 
       - name: Build and Push App (ARM64)
         run: |
+          ls -la 
+          echo ====================================
           # Use the exact Git SHA for a stable, unique tag across all jobs
           BASE_TAG=${{ github.sha }}
           APP_IMAGE=${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/hms-${{ matrix.service }}:${BASE_TAG}-arm64
@@ -187,7 +188,6 @@ jobs:
           pack build $APP_IMAGE \
             --path ./hospital-root/${{ matrix.service }} \
             --builder paketobuildpacks/ubuntu-noble-builder \
-            --buildpack paketo-buildpacks/python \
             --run-image $RUN_IMAGE \
             --env BP_PYTHON_VERSION=3.11 \
             --publish
