@@ -16,6 +16,7 @@ aiokafka = "*"
 python-jose = "*"
 
 [dev-packages]
+grpcio-tools = "*"
 
 [requires]
 python_version = "3.13"

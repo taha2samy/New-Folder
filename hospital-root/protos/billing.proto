@@ -6,6 +6,12 @@ service BillingService {
     rpc GetPatientBill(BillRequest) returns (BillResponse);
     rpc ProcessPayment(PaymentRequest) returns (PaymentResponse);
     rpc UpdatePriceList(PriceRequest) returns (PriceResponse);
+    rpc GetPrice(PriceQuery) returns (PriceItem);
+}
+
+message PriceQuery {
+    string item_type = 1;
+    string reference_id = 2;
 }
 
 message BillRequest {

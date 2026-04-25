@@ -16,6 +16,7 @@ from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 from app.domain.models import Base
 from app.events.producers import MasterDataEventProducer
+from app.events.consumers import BedEventConsumer
 from app.grpc.handler import MasterDataServiceHandler
 from app.grpc.interceptors import AuthInterceptor
 from app.generated import master_data_pb2_grpc
@@ -44,6 +45,7 @@ async def serve() -> None:
     # Kafka producer                                                       #
     # ------------------------------------------------------------------ #
     event_producer = MasterDataEventProducer()
+    event_consumer = BedEventConsumer(async_session)
 
     # ------------------------------------------------------------------ #
     # gRPC server                                                          #
@@ -60,12 +62,14 @@ async def serve() -> None:
 
     logger.info("Master Data gRPC server starting on %s", listen_addr)
     await server.start()
+    await event_consumer.start()
 
     try:
         await server.wait_for_termination()
     except asyncio.CancelledError:
         logger.info("Shutdown signal received — flushing Kafka producer...")
         event_producer.flush()
+        await event_consumer.stop()
         logger.info("Master Data service shut down cleanly.")
 
 

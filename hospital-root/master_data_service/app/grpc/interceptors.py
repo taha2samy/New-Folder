@@ -28,18 +28,10 @@ class AuthInterceptor(grpc.aio.ServerInterceptor):
         metadata = dict(handler_call_details.invocation_metadata)
 
         auth_header = metadata.get("authorization")
-        internal_secret = metadata.get("x-internal-secret")
-
         user_id = None
         token = None
 
-        # 1. Check Internal Secret (Highest priority for background tasks)
-        if internal_secret == settings.INTERNAL_API_SECRET:
-            user_id = "system-internal"
-            token = "internal-bypass"
-        
-        # 2. Check JWT Token
-        elif auth_header and auth_header.startswith("Bearer "):
+        if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ", 1)[1]
             decoded = decode_jwt_token(token)
             if decoded:
@@ -48,7 +40,7 @@ class AuthInterceptor(grpc.aio.ServerInterceptor):
         if not user_id:
             return self._abort(
                 grpc.StatusCode.UNAUTHENTICATED,
-                "Authentication failed: Missing internal secret or invalid JWT.",
+                "Authentication failed: Invalid or missing JWT.",
             )
 
 

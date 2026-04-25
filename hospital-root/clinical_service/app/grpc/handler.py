@@ -3,6 +3,7 @@
 import logging
 import functools
 import grpc
+from typing import Any
 from app.generated import clinical_pb2, clinical_pb2_grpc, master_data_pb2
 from app.domain.repository import ClinicalRepository
 from app.domain.models import Encounter, VitalSign, Diagnosis
@@ -15,11 +16,15 @@ logger = logging.getLogger(__name__)
 
 
 class ClinicalEncounterServiceHandler(clinical_pb2_grpc.ClinicalEncounterServiceServicer):
-    def __init__(self, db_session_factory, event_producer: EncounterEventProducer, patient_client: PatientServiceClient, master_data_client: MasterDataClient):
+    def __init__(self, db_session_factory, event_producer: EncounterEventProducer, 
+                 patient_client: PatientServiceClient, 
+                 master_data_client: MasterDataClient,
+                 billing_client: Any): # Avoid circular or complex type hint if needed
         self.db_session_factory = db_session_factory
         self.event_producer = event_producer
         self.patient_client = patient_client
         self.master_data_client = master_data_client
+        self.billing_client = billing_client
 
     def _extract_context(self, context: grpc.aio.ServicerContext):
         metadata = dict(context.invocation_metadata())
@@ -101,17 +106,25 @@ class ClinicalEncounterServiceHandler(clinical_pb2_grpc.ClinicalEncounterService
                     )
                     await repo.create_encounter(encounter)
             
+            # Fetch Pricing Context from Billing (Context Enrichment)
+            bed_category = selected_bed.get("category", "GENERAL")
+            bed_price = await self.billing_client.get_price("ADMISSION", bed_category, token)
+            if bed_price is None:
+                logger.warning(f"Price for bed category {bed_category} not found in Billing Service. Using default 0.0")
+                bed_price = 0.0
+
             # Atomic Operation: Update bed status to OCCUPIED
             await self.master_data_client.update_bed_status(request.bed_id, master_data_pb2.BedStatus.OCCUPIED, token)
             
-            # Broadcast Fat Event for Billing
+            # Broadcast Fat Event for Billing (Self-Sufficient Message)
             self.event_producer.broadcast_encounter_created(
                 encounter_id=encounter.id, 
                 patient_id=encounter.patient_id, 
                 encounter_type="ADMISSION",
                 bed_id=request.bed_id,
-                bed_category=selected_bed.get("category", "GENERAL"),
-                ward_id=request.ward_id
+                bed_category=bed_category,
+                ward_id=request.ward_id,
+                bed_price=float(bed_price)
             )
 
             return self._map_to_proto(encounter)

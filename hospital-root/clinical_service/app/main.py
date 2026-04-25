@@ -13,6 +13,7 @@ from app.events.producers import EncounterEventProducer
 from app.events.consumers import PatientEventConsumer
 from app.grpc_clients.patient_client import PatientServiceClient
 from app.grpc_clients.master_data_client import MasterDataClient
+from app.grpc_clients.billing_client import BillingClient
 from app.domain.models import Base
 
 logging.basicConfig(level=logging.INFO)
@@ -30,6 +31,7 @@ async def serve():
     master_data_client = MasterDataClient()
     consumer = PatientEventConsumer(async_session_factory, master_data_client)
     client = PatientServiceClient()
+    billing_client = BillingClient(settings.BILLING_SERVICE_ADDR)
 
     try:
         await producer.start()
@@ -44,7 +46,8 @@ async def serve():
         db_session_factory=async_session_factory,
         event_producer=producer,
         patient_client=client,
-        master_data_client=master_data_client
+        master_data_client=master_data_client,
+        billing_client=billing_client
     )
     
     clinical_pb2_grpc.add_ClinicalEncounterServiceServicer_to_server(handler, server)

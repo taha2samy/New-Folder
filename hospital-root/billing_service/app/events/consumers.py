@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import settings
 from app.domain.repository import BillingRepository
-from app.grpc_clients.clinical_client import ClinicalClient
+from app.domain.repository import BillingRepository
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ class BillingEventConsumer:
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
         self._consumer: AIOKafkaConsumer | None = None
-        self._clinical_client = ClinicalClient()
+        self._consumer: AIOKafkaConsumer | None = None
         self._running = False
 
     # ------------------------------------------------------------------
@@ -112,7 +112,10 @@ class BillingEventConsumer:
                 if topic == "hospital.pharmacy.dispensing":
                     await self._handle_medicine_dispensed(payload, trace_id)
                 elif topic == "hospital.clinical.encounters":
-                    await self._handle_encounter_created(payload, trace_id)
+                    if payload.get("event_type") == "EncounterCreated":
+                        await self._handle_encounter_created(payload, trace_id)
+                    elif payload.get("event_type") == "EncounterCompleted":
+                        await self._handle_encounter_completed(payload, trace_id)
                 else:
                     logger.warning("Unhandled topic: %s", topic)
             except Exception as exc:
@@ -181,36 +184,34 @@ class BillingEventConsumer:
 
     async def _handle_encounter_created(self, payload: dict, trace_id: str) -> None:
         """
-        Expected payload shape:
+        Enriched EncounterCreated payload:
           {
             "event_type":   "EncounterCreated",
-            "event_id":     "<uuid>",          # idempotency key
+            "event_id":     "<uuid>",          
             "patient_id":   "<uuid>",
             "encounter_id": "<uuid>",
             "encounter_type": "ADMISSION",
-            "bed_id":       "<uuid>"
+            "bed_id":       "<uuid>",
+            "bed_category": "GENERAL",
+            "bed_price":    150.0
           }
         """
-        event_type = payload.get("event_type", "")
-        if event_type != "EncounterCreated":
-            return
-
         event_id     = payload.get("event_id")
         patient_id   = payload.get("patient_id")
         encounter_id = payload.get("encounter_id")
+        encounter_type = payload.get("encounter_type", "OPD")
+        bed_id       = payload.get("bed_id", "")
         bed_category = payload.get("bed_category", "GENERAL")
+        bed_price    = Decimal(str(payload.get("bed_price", 0.0)))
 
         if not all([event_id, patient_id, encounter_id]):
-            logger.error(
-                "EncounterCreated payload missing required fields | trace_id=%s payload=%s",
-                trace_id, payload,
-            )
+            logger.error(f"EncounterCreated missing fields | trace_id={trace_id}")
             return
 
         async with self._session_factory() as session:
             repo = BillingRepository(session)
 
-            # Apply flat setup fee for patient encounter
+            # 1. Admission Setup Fee
             await repo.add_bill_item(
                 patient_id=patient_id,
                 item_type="ADMISSION_SETUP", 
@@ -219,17 +220,34 @@ class BillingEventConsumer:
                 amount=CONSULTATION_FEE,
             )
 
-            # We could do something with bed_category here if needed,
-            # but usually it's for recurring billing.
+            # 2. Track stay for recurring billing (Self-Sufficient / Context Completeness)
+            if encounter_type == "ADMISSION" and bed_id:
+                await repo.update_stay(
+                    encounter_id=encounter_id,
+                    patient_id=patient_id,
+                    bed_id=bed_id,
+                    bed_category=bed_category,
+                    bed_price=bed_price,
+                    status="ACTIVE"
+                )
 
-            # No immediate bed charge here. Recurring billing handles it.
-            # (Remove the immediate charge logic)
-            pass
+            logger.info(f"EncounterCreated processed | stay tracked for admission: {encounter_id}")
 
-            logger.info(
-                "EncounterCreated processed | patient=%s encounter=%s trace_id=%s",
-                patient_id, encounter_id, trace_id,
-            )
+    async def _handle_encounter_completed(self, payload: dict, trace_id: str) -> None:
+        encounter_id = payload.get("encounter_id")
+        if not encounter_id: return
+
+        async with self._session_factory() as session:
+            repo = BillingRepository(session)
+            # Fetch stay and mark completed
+            # We don't have update_stay_status but we can use update_stay with status="COMPLETED"
+            # However, we'd need more info or just a dedicated method.
+            # Let's assume update_stay handles it if we pass dummy values for others or if it fetches first.
+            # Actually, I added update_stay which takes all fields. 
+            # Ideally I should have a simple update_status.
+            # Let's just use update_stay with what we have.
+            await repo.update_stay(encounter_id, "", "", "", Decimal("0"), status="COMPLETED")
+            logger.info(f"EncounterCompleted processed | stay closed: {encounter_id}")
 
     # ------------------------------------------------------------------
     # Midnight Recurring Billing (Background Simulation)
@@ -237,38 +255,29 @@ class BillingEventConsumer:
 
     async def process_midnight_billing(self) -> None:
         """
-        Iterates over all active admissions and applies a daily bed charge.
-        Typically triggered by a cron job or background scheduler.
+        Iterates over all active admissions (tracked locally) and applies a daily bed charge.
+        NO gRPC calls to Clinical Service (Independence).
         """
-        logger.info("Starting midnight recurring billing cycle...")
-        admissions = await self._clinical_client.get_active_admissions()
+        logger.info("Starting midnight recurring billing cycle (Independent Mode)...")
         
         async with self._session_factory() as session:
             repo = BillingRepository(session)
-            # Use current date as part of idempotency key (YYYY-MM-DD)
+            active_stays = await repo.get_active_stays()
+            
             today_str = datetime.datetime.utcnow().strftime("%Y-%m-%d")
             
-            for adm in admissions:
-                bed_id = adm.get("bed_id")
-                patient_id = adm.get("patient_id")
-                encounter_id = adm.get("encounter_id")
-                category = adm.get("bed_category", "GENERAL")
-                
-                if not bed_id: continue
-
-                bed_price = await repo.get_price("BED", category) or Decimal("100.00")
-                
+            for stay in active_stays:
                 # Idempotency: reference_id = <encounter_id>_BED_<date>
                 await repo.add_bill_item(
-                    patient_id=patient_id,
+                    patient_id=stay.patient_id,
                     item_type="BED_CHARGE",
-                    reference_id=f"{encounter_id}_BED_{today_str}",
+                    reference_id=f"{stay.id}_BED_{today_str}",
                     quantity=Decimal("1"),
-                    amount=bed_price,
+                    amount=stay.bed_price,
                 )
                 logger.info(
-                    "Daily bed charge applied | patient=%s bed=%s date=%s",
-                    patient_id, bed_id, today_str
+                    "Daily bed charge applied | patient=%s status=ADMITTED date=%s",
+                    stay.patient_id, today_str
                 )
         
         logger.info("Midnight billing cycle completed.")

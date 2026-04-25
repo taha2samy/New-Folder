@@ -13,7 +13,7 @@ from app.generated import master_data_pb2
 logger = logging.getLogger(__name__)
 
 class PatientEventConsumer:
-    def __init__(self, db_session_factory, master_data_client):
+    def __init__(self, db_session_factory, master_data_client, event_producer):
         self.consumer = AIOKafkaConsumer(
             "patient_lifecycle",
             bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
@@ -21,6 +21,7 @@ class PatientEventConsumer:
         )
         self.db_session_factory = db_session_factory
         self.master_data_client = master_data_client
+        self.event_producer = event_producer
         self._running = False
 
     async def start(self):
@@ -56,21 +57,15 @@ class PatientEventConsumer:
                 active_adm = await repo.get_active_admission(patient_id)
                 
                 # 2. Suspend all active encounters
-                await repo.suspend_patient_encounters(patient_id)
-                await session.commit()
-                
-                # 3. If they had a bed, free it in MasterDataService
+                # 3. If they had a bed, free it (Event-Driven / No Backdoor / Natural Flow)
                 if active_adm and active_adm.bed_id:
-                    logger.info(f"Freeing bed {active_adm.bed_id} for deleted patient {patient_id}")
-                    metadata = (
-                        ("x-internal-secret", settings.INTERNAL_API_SECRET),
-                        ("x-trace-id", f"free-bed-{patient_id}")
-                    )
+                    logger.info(f"Freeing bed {active_adm.bed_id} for deleted patient {patient_id} via Fat Event.")
+                    
                     # Moving bed to CLEANING as per ERP standard housekeeping flow
-                    await self.master_data_client.update_bed_status(
-                        active_adm.bed_id, 
-                        master_data_pb2.BedStatus.CLEANING, 
-                        metadata=metadata
+                    self.event_producer.broadcast_bed_status_changed(
+                        bed_id=active_adm.bed_id, 
+                        status="CLEANING", 
+                        ward_id=active_adm.ward_id or "unknown"
                     )
 
         except Exception as e:

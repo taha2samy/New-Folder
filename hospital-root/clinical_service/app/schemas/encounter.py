@@ -18,5 +18,5 @@ class CreateOPDVisitSchema(BaseModel):
 class StartAdmissionSchema(BaseModel):
     patient_id: str
     doctor_id: str
-    ward: str
-    bed_number: str
+    ward_id: str
+    bed_id: str

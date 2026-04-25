@@ -15,7 +15,7 @@ class EncounterEventProducer:
     async def start(self): await self.producer.start()
     async def stop(self):  await self.producer.stop()
 
-    def broadcast_encounter_created(self, encounter_id: str, patient_id: str, encounter_type: str, bed_id: str = "", bed_category: str = "", ward_id: str = ""):
+    def broadcast_encounter_created(self, encounter_id: str, patient_id: str, encounter_type: str, bed_id: str = "", bed_category: str = "", ward_id: str = "", bed_price: float = 0.0):
         import uuid
         payload = {
             "event_id": str(uuid.uuid4()),
@@ -25,7 +25,8 @@ class EncounterEventProducer:
             "encounter_type": encounter_type,
             "bed_id": bed_id,
             "bed_category": bed_category,
-            "ward_id": ward_id
+            "ward_id": ward_id,
+            "bed_price": bed_price
         }
         asyncio.create_task(self._send_event("hospital.clinical.encounters", payload))
 

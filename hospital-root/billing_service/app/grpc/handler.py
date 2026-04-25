@@ -91,3 +91,22 @@ class BillingServiceHandler(billing_pb2_grpc.BillingServiceServicer):
         except Exception as e:
             logger.error(f"UpdatePriceList Error: {e}")
             await context.abort(grpc.StatusCode.INTERNAL, "Error updating prices.")
+
+    async def GetPrice(self, request, context):
+        user_id, token = self._extract_context(context)
+        try:
+            async with self.db_session_factory() as session:
+                repo = BillingRepository(session)
+                price = await repo.get_price(request.item_type, request.reference_id)
+                if price is None:
+                    await context.abort(grpc.StatusCode.NOT_FOUND, f"Price for {request.item_type}/{request.reference_id} not found.")
+                
+                return billing_pb2.PriceItem(
+                    item_type=request.item_type,
+                    reference_id=request.reference_id,
+                    price=float(price)
+                )
+        except grpc.RpcError: raise
+        except Exception as e:
+            logger.error(f"GetPrice Error: {e}")
+            await context.abort(grpc.StatusCode.INTERNAL, "Error fetching price.")

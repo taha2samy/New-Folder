@@ -9,18 +9,10 @@ class AuthInterceptor(grpc.aio.ServerInterceptor):
     async def intercept_service(self, continuation: Callable, handler_call_details: grpc.HandlerCallDetails) -> Any:
         metadata = dict(handler_call_details.invocation_metadata)
         auth_header = metadata.get("authorization")
-        internal_secret = metadata.get("x-internal-secret")
-
         user_id = None
         token = None
 
-        # 1. Check Internal Secret
-        if internal_secret == settings.INTERNAL_API_SECRET:
-            user_id = "system-internal"
-            token = "internal-bypass"
-        
-        # 2. Check JWT Token
-        elif auth_header and auth_header.startswith("Bearer "):
+        if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]
             decoded = decode_jwt_token(token)
             if decoded:

@@ -47,3 +47,14 @@ class Payment(Base):
     date = Column(DateTime, default=datetime.utcnow)
 
     bill = relationship("Bill", back_populates="payments")
+
+class AdmissionStay(Base):
+    __tablename__ = "admission_stays"
+    id = Column(String, primary_key=True) # match encounter_id
+    patient_id = Column(String, nullable=False, index=True)
+    bed_id = Column(String, nullable=False)
+    bed_category = Column(String, nullable=False)
+    bed_price = Column(Numeric(10, 2), nullable=False)
+    status = Column(String, default="ACTIVE", nullable=False) # ACTIVE, COMPLETED
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

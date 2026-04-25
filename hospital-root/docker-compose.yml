@@ -90,6 +90,7 @@ services:
       - CLINICAL_SVC_JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - CLINICAL_SVC_JWT_ALGORITHM=${JWT_ALGORITHM}
       - CLINICAL_SVC_GRPC_PORT=50052
+      - CLINICAL_SVC_INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
     ports:
       - "50052:50052"
     networks:
@@ -153,8 +154,31 @@ services:
       - MASTER_DATA_SVC_JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - MASTER_DATA_SVC_JWT_ALGORITHM=${JWT_ALGORITHM}
       - MASTER_DATA_SVC_GRPC_PORT=50055
+      - MASTER_DATA_SVC_INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
     ports:
       - "50055:50055"
+    networks:
+      - hms_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      event-broker:
+        condition: service_healthy
+
+  billing-service:
+    build:
+      context: ./billing_service
+    env_file:
+      - .env
+    environment:
+      - BILLING_SVC_DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/billing_db
+      - BILLING_SVC_KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
+      - BILLING_SVC_MASTER_DATA_SERVICE_ADDR=master-data-service:50055
+      - BILLING_SVC_CLINICAL_SERVICE_ADDR=clinical-service:50052
+      - BILLING_SVC_INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
+      - BILLING_SVC_GRPC_PORT=50056
+    ports:
+      - "50056:50056"
     networks:
       - hms_network
     depends_on:
@@ -191,6 +215,8 @@ services:
       laboratory-service:
         condition: service_started
       master-data-service:
+        condition: service_started
+      billing-service:
         condition: service_started
 
 networks:

@@ -9,7 +9,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -80,6 +80,10 @@ class Bed(Base):
     is_deleted = Column(Boolean, nullable=False, default=False)
 
     ward = relationship("Ward", back_populates="beds")
+
+    __table_args__ = (
+        UniqueConstraint("code", "ward_id", name="uq_bed_code_per_ward"),
+    )
 
 
 class DiseaseType(Base):

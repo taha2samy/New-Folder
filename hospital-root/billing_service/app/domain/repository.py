@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
-from .models import Bill, BillItem, PriceList, Payment
+from .models import Bill, BillItem, PriceList, Payment, AdmissionStay
 from decimal import Decimal
 
 class BillingRepository:
@@ -98,3 +98,32 @@ class BillingRepository:
             self.session.add(pl)
         await self.session.commit()
         return pl
+
+    async def update_stay(self, encounter_id: str, patient_id: str, bed_id: str, bed_category: str, bed_price: Decimal, status: str = "ACTIVE") -> None:
+        result = await self.session.execute(
+            select(AdmissionStay).where(AdmissionStay.id == encounter_id)
+        )
+        stay = result.scalars().first()
+        if not stay:
+            stay = AdmissionStay(
+                id=encounter_id,
+                patient_id=patient_id,
+                bed_id=bed_id,
+                bed_category=bed_category,
+                bed_price=bed_price,
+                status=status
+            )
+            self.session.add(stay)
+        else:
+            stay.status = status
+            stay.bed_id = bed_id
+            stay.bed_category = bed_category
+            stay.bed_price = bed_price
+        
+        await self.session.commit()
+
+    async def get_active_stays(self):
+        result = await self.session.execute(
+            select(AdmissionStay).where(AdmissionStay.status == "ACTIVE")
+        )
+        return result.scalars().all()
