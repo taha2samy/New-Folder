@@ -45,7 +45,8 @@ jobs:
           
           pack build $APP_IMAGE \
             --path ./hospital-root/master_data_service \
-            --builder paketobuildpacks/builder-ubi-base \
+            --builder paketobuildpacks/builder-ubi8-base \
+            --buildpack paketo-buildpacks/python \
             --run-image ${{ env.CUSTOM_RUN_IMAGE }} \
             --env BP_PYTHON_VERSION=3.10 \
             --publish
