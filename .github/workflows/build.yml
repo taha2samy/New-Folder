@@ -1,0 +1,41 @@
+name: Build to GHCR
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image Tag'
+        required: true
+        default: 'latest'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pack CLI
+        uses: buildpacks/github-actions/setup-pack@v5.12.0
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push
+        run: |
+          IMAGE_ID=ghcr.io/${{ github.repository_owner }}/hms-master-data-service
+          IMAGE_ID=$(echo $IMAGE_ID | tr '[:upper:]' '[:lower:]')
+          
+          pack build $IMAGE_ID:${{ github.event.inputs.tag }} \
+            --path ./hospital-root/master_data_service \
+            --builder paketobuildpacks/builder-jammy-base \
+            --env BP_PYTHON_VERSION=3.10.16 \
+            --publish
