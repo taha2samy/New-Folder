@@ -114,6 +114,8 @@ jobs:
 
       - name: Build and Push App (AMD64)
         run: |
+          ls -R ./hospital-root/${{ matrix.service }} 
+          echo "==========================="
           # Use the exact Git SHA for a stable, unique tag across all jobs
           BASE_TAG=${{ github.sha }}
           APP_IMAGE=${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/hms-${{ matrix.service }}:${BASE_TAG}-amd64
@@ -176,8 +178,8 @@ jobs:
 
       - name: Build and Push App (ARM64)
         run: |
-          ls -la 
-          echo ====================================
+          ls -R ./hospital-root/${{ matrix.service }} 
+          echo "==========================="
           # Use the exact Git SHA for a stable, unique tag across all jobs
           BASE_TAG=${{ github.sha }}
           APP_IMAGE=${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/hms-${{ matrix.service }}:${BASE_TAG}-arm64
