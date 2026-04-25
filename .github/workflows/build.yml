@@ -40,6 +40,6 @@ jobs:
             --buildpack "paketo-buildpacks/python" \
             --extension "./infra/build-extensions/gcc-extension" \
             --run-image "${{ env.CUSTOM_RUN_IMAGE }}" \
-            --env "BP_PYTHON_VERSION=3.11" \
+            --env "BP_PYTHON_VERSION=3.11.15" \
             --env "BP_LOG_LEVEL=DEBUG" \
             --publish
