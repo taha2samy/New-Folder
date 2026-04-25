@@ -26,7 +26,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import settings
 from app.domain.repository import BillingRepository
-from app.grpc_clients.master_data_client import MasterDataClient
 from app.grpc_clients.clinical_client import ClinicalClient
 
 logger = logging.getLogger(__name__)
@@ -49,7 +48,6 @@ class BillingEventConsumer:
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
         self._consumer: AIOKafkaConsumer | None = None
-        self._master_data_client = MasterDataClient()
         self._clinical_client = ClinicalClient()
         self._running = False
 
@@ -200,6 +198,7 @@ class BillingEventConsumer:
         event_id     = payload.get("event_id")
         patient_id   = payload.get("patient_id")
         encounter_id = payload.get("encounter_id")
+        bed_category = payload.get("bed_category", "GENERAL")
 
         if not all([event_id, patient_id, encounter_id]):
             logger.error(
@@ -214,11 +213,14 @@ class BillingEventConsumer:
             # Apply flat setup fee for patient encounter
             await repo.add_bill_item(
                 patient_id=patient_id,
-                item_type="ADMISSION_SETUP", # renamed for clarity
+                item_type="ADMISSION_SETUP", 
                 reference_id=f"{event_id}_SETUP",
                 quantity=Decimal("1"),
                 amount=CONSULTATION_FEE,
             )
+
+            # We could do something with bed_category here if needed,
+            # but usually it's for recurring billing.
 
             # No immediate bed charge here. Recurring billing handles it.
             # (Remove the immediate charge logic)
@@ -250,25 +252,23 @@ class BillingEventConsumer:
                 bed_id = adm.get("bed_id")
                 patient_id = adm.get("patient_id")
                 encounter_id = adm.get("encounter_id")
+                category = adm.get("bed_category", "GENERAL")
                 
                 if not bed_id: continue
 
-                bed_info = await self._master_data_client.get_bed(bed_id, trace_id="midnight-cron")
-                if bed_info:
-                    category = bed_info.get("category", "GENERAL")
-                    bed_price = await repo.get_price("BED", category) or Decimal("100.00")
-                    
-                    # Idempotency: reference_id = <encounter_id>_BED_<date>
-                    await repo.add_bill_item(
-                        patient_id=patient_id,
-                        item_type="BED_CHARGE",
-                        reference_id=f"{encounter_id}_BED_{today_str}",
-                        quantity=Decimal("1"),
-                        amount=bed_price,
-                    )
-                    logger.info(
-                        "Daily bed charge applied | patient=%s bed=%s date=%s",
-                        patient_id, bed_id, today_str
-                    )
+                bed_price = await repo.get_price("BED", category) or Decimal("100.00")
+                
+                # Idempotency: reference_id = <encounter_id>_BED_<date>
+                await repo.add_bill_item(
+                    patient_id=patient_id,
+                    item_type="BED_CHARGE",
+                    reference_id=f"{encounter_id}_BED_{today_str}",
+                    quantity=Decimal("1"),
+                    amount=bed_price,
+                )
+                logger.info(
+                    "Daily bed charge applied | patient=%s bed=%s date=%s",
+                    patient_id, bed_id, today_str
+                )
         
         logger.info("Midnight billing cycle completed.")

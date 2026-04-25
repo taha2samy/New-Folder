@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = "super_secret_jwt_key_override_in_prod"
     JWT_ALGORITHM: str = "HS256"
     GRPC_PORT: int = 50055
+    INTERNAL_API_SECRET: str = "hms-system-internal-secret-2026"
 
     class Config:
         env_prefix = "MASTER_DATA_SVC_"

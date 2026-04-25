@@ -23,7 +23,11 @@ class ClinicalEncounterServiceHandler(clinical_pb2_grpc.ClinicalEncounterService
 
     def _extract_context(self, context: grpc.aio.ServicerContext):
         metadata = dict(context.invocation_metadata())
-        return metadata.get("x-user-id", ""), metadata.get("x-jwt-token", ""), metadata.get("x-trace-id", "unknown")
+        user_id = metadata.get("x-user-id", "")
+        token = metadata.get("x-jwt-token", "")
+        trace_id = metadata.get("x-trace-id", "unknown")
+        # For relaying, we often need the full authorization header too, or just the token.
+        return user_id, token, token, trace_id
 
     async def _validate_patient(self, patient_id: str, jwt_token: str, context: grpc.aio.ServicerContext):
         patient = await self.patient_client.get_patient_by_id(patient_id, jwt_token)
@@ -92,16 +96,24 @@ class ClinicalEncounterServiceHandler(clinical_pb2_grpc.ClinicalEncounterService
                         doctor_id=request.doctor_id,
                         encounter_type="ADMISSION",
                         ward_id=request.ward_id,
-                        bed_id=request.bed_id
+                        bed_id=request.bed_id,
+                        bed_category=selected_bed.get("category", "GENERAL")
                     )
                     await repo.create_encounter(encounter)
             
             # Atomic Operation: Update bed status to OCCUPIED
             await self.master_data_client.update_bed_status(request.bed_id, master_data_pb2.BedStatus.OCCUPIED, token)
             
-            self.event_producer.broadcast_bed_status_changed(request.bed_id, "OCCUPIED", request.ward_id)
-                    
-            self.event_producer.broadcast_encounter_created(encounter.id, encounter.patient_id, encounter.encounter_type, request.bed_id)
+            # Broadcast Fat Event for Billing
+            self.event_producer.broadcast_encounter_created(
+                encounter_id=encounter.id, 
+                patient_id=encounter.patient_id, 
+                encounter_type="ADMISSION",
+                bed_id=request.bed_id,
+                bed_category=selected_bed.get("category", "GENERAL"),
+                ward_id=request.ward_id
+            )
+
             return self._map_to_proto(encounter)
         except grpc.RpcError: raise
         except Exception as e:
@@ -200,5 +212,6 @@ class ClinicalEncounterServiceHandler(clinical_pb2_grpc.ClinicalEncounterService
             diagnoses_ids=[d.disease_id for d in encounter.diagnoses] if getattr(encounter, "diagnoses", None) else [],
             ward_id=encounter.ward_id if getattr(encounter, "ward_id", None) else "",
             spo2=encounter.vitals.spo2 if getattr(encounter, "vitals", None) and encounter.vitals.spo2 else 0.0,
-            bed_id=encounter.bed_id if getattr(encounter, "bed_id", None) else ""
+            bed_id=encounter.bed_id if getattr(encounter, "bed_id", None) else "",
+            bed_category=encounter.bed_category if getattr(encounter, "bed_category", None) else ""
         )

@@ -6,7 +6,7 @@ from typing import Optional, Dict, Any
 from app.generated import master_data_pb2, master_data_pb2_grpc
 from app.core.config import settings
 
-from app.core.security import generate_internal_token
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +18,8 @@ class MasterDataClient:
     async def get_bed(self, bed_id: str, trace_id: str = "unknown") -> Optional[Dict[str, Any]]:
         """Retrieves bed details for category mapping, using internal auth."""
         request = master_data_pb2.BedQuery(bed_id=bed_id)
-        token = generate_internal_token()
         metadata = (
-            ("authorization", f"Bearer {token}"),
+            ("x-internal-secret", settings.INTERNAL_API_SECRET),
             ("x-trace-id", trace_id)
         )
         try:

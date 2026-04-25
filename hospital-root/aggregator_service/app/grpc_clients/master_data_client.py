@@ -11,7 +11,6 @@ from typing import Any, Dict, List, Optional
 import grpc
 
 from app.generated import master_data_pb2, master_data_pb2_grpc
-from app.core.security import generate_jwt_token
 
 logger = logging.getLogger(__name__)
 
@@ -22,16 +21,11 @@ class MasterDataClient:
     def __init__(self, channel: grpc.aio.Channel) -> None:
         self.stub = master_data_pb2_grpc.MasterDataServiceStub(channel)
 
-    def _get_metadata(self, user_id: str) -> tuple[tuple[str, str]]:
-        """Generate a short-lived internal JWT and package it as gRPC metadata."""
-        token = generate_jwt_token(user_id=user_id, role="internal_service", expiration_minutes=5)
-        return (("authorization", f"Bearer {token}"),)
-
-    async def get_wards(self, user_id: str) -> List[Dict[str, Any]]:
+    async def get_wards(self, metadata: tuple) -> List[Dict[str, Any]]:
         """Fetch all wards."""
         try:
             req = master_data_pb2.EmptyRequest()
-            res = await self.stub.GetWards(req, metadata=self._get_metadata(user_id))
+            res = await self.stub.GetWards(req, metadata=metadata)
             return [
                 {
                     "id": w.ward_id,
@@ -46,11 +40,11 @@ class MasterDataClient:
             logger.error("MasterDataService.GetWards failed: %s", e.details())
             return []
 
-    async def get_diseases(self, user_id: str, search_term: str = "") -> List[Dict[str, Any]]:
+    async def get_diseases(self, metadata: tuple, search_term: str = "") -> List[Dict[str, Any]]:
         """Fetch matching diseases."""
         try:
             req = master_data_pb2.DiseaseQuery(search_term=search_term)
-            res = await self.stub.GetDiseases(req, metadata=self._get_metadata(user_id))
+            res = await self.stub.GetDiseases(req, metadata=metadata)
             return [
                 {
                     "id": d.disease_id,
@@ -64,11 +58,11 @@ class MasterDataClient:
             logger.error("MasterDataService.GetDiseases failed: %s", e.details())
             return []
 
-    async def get_exam_types(self, user_id: str) -> List[Dict[str, Any]]:
+    async def get_exam_types(self, metadata: tuple) -> List[Dict[str, Any]]:
         """Fetch lab examination types."""
         try:
             req = master_data_pb2.EmptyRequest()
-            res = await self.stub.GetExamTypes(req, metadata=self._get_metadata(user_id))
+            res = await self.stub.GetExamTypes(req, metadata=metadata)
             return [
                 {
                     "id": et.exam_type_id,
@@ -82,11 +76,11 @@ class MasterDataClient:
             logger.error("MasterDataService.GetExamTypes failed: %s", e.details())
             return []
 
-    async def get_operation_types(self, user_id: str) -> List[Dict[str, Any]]:
+    async def get_operation_types(self, metadata: tuple) -> List[Dict[str, Any]]:
         """Fetch surgical operation types."""
         try:
             req = master_data_pb2.EmptyRequest()
-            res = await self.stub.GetOperationTypes(req, metadata=self._get_metadata(user_id))
+            res = await self.stub.GetOperationTypes(req, metadata=metadata)
             return [
                 {
                     "id": ot.operation_type_id,
@@ -100,11 +94,11 @@ class MasterDataClient:
             logger.error("MasterDataService.GetOperationTypes failed: %s", e.details())
             return []
 
-    async def get_beds(self, user_id: str, ward_id: str) -> List[Dict[str, Any]]:
+    async def get_beds(self, metadata: tuple, ward_id: str) -> List[Dict[str, Any]]:
         """Fetch beds for a ward."""
         try:
             req = master_data_pb2.WardQuery(ward_id=ward_id)
-            res = await self.stub.GetBedsByWard(req, metadata=self._get_metadata(user_id))
+            res = await self.stub.GetBedsByWard(req, metadata=metadata)
             return [
                 {
                     "id": b.bed_id,
@@ -119,11 +113,11 @@ class MasterDataClient:
             logger.error("MasterDataService.GetBedsByWard failed: %s", e.details())
             return []
 
-    async def get_all_beds(self, user_id: str) -> List[Dict[str, Any]]:
+    async def get_all_beds(self, metadata: tuple) -> List[Dict[str, Any]]:
         """Fetch all non-deleted beds in the hospital (Optimized for Bulk)."""
         try:
             req = master_data_pb2.EmptyRequest()
-            res = await self.stub.GetAllBeds(req, metadata=self._get_metadata(user_id))
+            res = await self.stub.GetAllBeds(req, metadata=metadata)
             return [
                 {
                     "id": b.bed_id,
@@ -138,11 +132,11 @@ class MasterDataClient:
             logger.error("MasterDataService.GetAllBeds failed: %s", e.details())
             return []
 
-    async def mark_bed_as_ready(self, bed_id: str, user_id: str) -> Optional[Dict[str, Any]]:
+    async def mark_bed_as_ready(self, bed_id: str, metadata: tuple) -> Optional[Dict[str, Any]]:
         """Transitions a bed from CLEANING to AVAILABLE via gRPC."""
         try:
             req = master_data_pb2.BedQuery(bed_id=bed_id)
-            res = await self.stub.MarkBedAsReady(req, metadata=self._get_metadata(user_id))
+            res = await self.stub.MarkBedAsReady(req, metadata=metadata)
             return {
                 "id": res.bed_id,
                 "code": res.bed_code,

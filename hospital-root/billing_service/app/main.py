@@ -58,6 +58,22 @@ async def serve_grpc(session_factory: async_sessionmaker[AsyncSession]) -> None:
     await server.wait_for_termination()
 
 
+async def run_recurring_billing_cycle(consumer: BillingEventConsumer) -> None:
+    """Simple background loop to trigger midnight billing every 24 hours."""
+    # Optional: sleep until next midnight if we want real-world behavior
+    while True:
+        try:
+            logger.info("Recurring billing loop: Sleeping for 24 hours...")
+            await asyncio.sleep(24 * 3600)
+            logger.info("Recurring billing loop: Triggering midnight cycle.")
+            await consumer.process_midnight_billing()
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error("Error in recurring billing loop: %s", e)
+            await asyncio.sleep(600) # Retry in 10 mins
+
+
 async def main() -> None:
     session_factory = build_session_factory()
     consumer = BillingEventConsumer(session_factory)
@@ -67,6 +83,7 @@ async def main() -> None:
         await asyncio.gather(
             serve_grpc(session_factory),
             consumer.run(),
+            run_recurring_billing_cycle(consumer),
         )
     finally:
         await consumer.stop()

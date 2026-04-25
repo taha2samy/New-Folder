@@ -135,7 +135,7 @@ class Query:
             return None
 
         master_data_client: MasterDataClient = client_refs["master_data"]
-        await _get_cached_master_data(master_data_client, token)
+        await _get_cached_master_data(master_data_client, metadata)
 
         # Build partial representations cleanly so a single service failure
         # does not bring down the entire unified graph response.
@@ -198,17 +198,16 @@ class Query:
     @strawberry.field
     async def get_reference_data(self, info: Info) -> ReferenceDataSummary:
         context = info.context
-        token = context.token
-        user_id = context.user_id if hasattr(context, "user_id") else "anonymous"
+        metadata = context.metadata
         
         master_data_client: MasterDataClient = client_refs["master_data"]
         
         # Parallelise top-level reference data fetching
-        wards_fut = master_data_client.get_wards(user_id)
-        diseases_fut = master_data_client.get_diseases(user_id)
-        exams_fut = master_data_client.get_exam_types(user_id)
-        ops_fut = master_data_client.get_operation_types(user_id)
-        beds_fut = master_data_client.get_all_beds(user_id) # Batch fetch all beds
+        wards_fut = master_data_client.get_wards(metadata)
+        diseases_fut = master_data_client.get_diseases(metadata)
+        exams_fut = master_data_client.get_exam_types(metadata)
+        ops_fut = master_data_client.get_operation_types(metadata)
+        beds_fut = master_data_client.get_all_beds(metadata) # Batch fetch all beds
         
         wards_raw, diseases_raw, exams_raw, ops_raw, all_beds_raw = await asyncio.gather(
             wards_fut, diseases_fut, exams_fut, ops_fut, beds_fut
@@ -269,11 +268,13 @@ class Mutation:
     @strawberry.mutation
     async def mark_bed_as_ready(self, info: Info, bed_id: strawberry.ID) -> MarkBedResponse:
         context = info.context
+        metadata = context.metadata
+        token = context.token
         user_id = context.user_id
         
         master_client: MasterDataClient = client_refs["master_data"]
         # RPC: MarkBedAsReady(BedQuery) returns (BedMessage)
-        result = await master_client.mark_bed_as_ready(str(bed_id), user_id)
+        result = await master_client.mark_bed_as_ready(str(bed_id), metadata)
         
         if result:
             bed_dto = BedType(

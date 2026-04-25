@@ -7,7 +7,7 @@ from aiokafka import AIOKafkaConsumer
 from app.core.config import settings
 from app.domain.repository import ClinicalRepository
 
-from app.core.security import generate_internal_token
+from app.core.config import settings
 from app.generated import master_data_pb2
 
 logger = logging.getLogger(__name__)
@@ -62,12 +62,15 @@ class PatientEventConsumer:
                 # 3. If they had a bed, free it in MasterDataService
                 if active_adm and active_adm.bed_id:
                     logger.info(f"Freeing bed {active_adm.bed_id} for deleted patient {patient_id}")
-                    token = generate_internal_token()
+                    metadata = (
+                        ("x-internal-secret", settings.INTERNAL_API_SECRET),
+                        ("x-trace-id", f"free-bed-{patient_id}")
+                    )
                     # Moving bed to CLEANING as per ERP standard housekeeping flow
                     await self.master_data_client.update_bed_status(
                         active_adm.bed_id, 
                         master_data_pb2.BedStatus.CLEANING, 
-                        token
+                        metadata=metadata
                     )
 
         except Exception as e:

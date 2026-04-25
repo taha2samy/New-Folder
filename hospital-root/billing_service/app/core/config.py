@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     
     MASTER_DATA_SERVICE_ADDR: str = "localhost:50055"
     CLINICAL_SERVICE_ADDR: str = "localhost:50051"
+    INTERNAL_API_SECRET: str = "hms-system-internal-secret-2026"
 
     class Config:
         env_file = ".env"

@@ -9,6 +9,7 @@ from typing import Any, Callable
 import grpc
 
 from app.core.security import decode_jwt_token
+from app.core.config import settings
 
 
 
@@ -27,24 +28,27 @@ class AuthInterceptor(grpc.aio.ServerInterceptor):
         metadata = dict(handler_call_details.invocation_metadata)
 
         auth_header = metadata.get("authorization")
-        if not auth_header or not auth_header.startswith("Bearer "):
-            return self._abort(
-                grpc.StatusCode.UNAUTHENTICATED,
-                "Missing or malformed Authorization header.",
-            )
+        internal_secret = metadata.get("x-internal-secret")
 
-        token = auth_header.split(" ", 1)[1]
-        decoded = decode_jwt_token(token)
+        user_id = None
+        token = None
 
-        if not decoded:
-            return self._abort(grpc.StatusCode.UNAUTHENTICATED, "Invalid or expired JWT token.")
-
-        user_id = decoded.get("sub")
+        # 1. Check Internal Secret (Highest priority for background tasks)
+        if internal_secret == settings.INTERNAL_API_SECRET:
+            user_id = "system-internal"
+            token = "internal-bypass"
+        
+        # 2. Check JWT Token
+        elif auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ", 1)[1]
+            decoded = decode_jwt_token(token)
+            if decoded:
+                user_id = decoded.get("sub")
 
         if not user_id:
             return self._abort(
                 grpc.StatusCode.UNAUTHENTICATED,
-                "JWT token is missing required search claim (sub).",
+                "Authentication failed: Missing internal secret or invalid JWT.",
             )
 
 
