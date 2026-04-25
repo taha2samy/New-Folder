@@ -1,0 +1,5 @@
+api = "0.9"
+[extension]
+id = "infra/gcc"
+version = "0.0.1"
+name = "GCC Installer"
