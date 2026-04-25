@@ -1,12 +1,7 @@
-api = "0.9"
-
 [extension]
-  id = "taha2samy/gcc-extension"
-  version = "0.0.1"
-  name = "GCC Extension for UBI"
+id = "taha2samy/gcc-extension"
+name = "GCC Extension"
+version = "0.0.1"
 
 [[stacks]]
-  id = "io.buildpacks.stacks.ubi8"
-
-[[stacks]]
-  id = "io.buildpacks.stacks.ubi9"
+id = "io.buildpacks.stacks.ubi9"
