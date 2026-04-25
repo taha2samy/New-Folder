@@ -51,18 +51,48 @@ class MasterDataRepository:
     # ------------------------------------------------------------------
 
     async def get_all_wards(self) -> List[Ward]:
-        """Return all ward records ordered alphabetically by name."""
-        result = await self._session.execute(
-            select(Ward).order_by(Ward.name)
+        """
+        Return all ward records ordered alphabetically by name.
+        The beds_count is dynamically calculated from active beds.
+        """
+        # Subquery to count active (non-deleted) beds per ward
+        bed_count_sub = (
+            select(Bed.ward_id, func.count(Bed.id).label("active_beds"))
+            .where(Bed.is_deleted == False)
+            .group_by(Bed.ward_id)
+            .subquery()
         )
-        return list(result.scalars().all())
+
+        result = await self._session.execute(
+            select(Ward, bed_count_sub.c.active_beds)
+            .outerjoin(bed_count_sub, Ward.id == bed_count_sub.c.ward_id)
+            .order_by(Ward.name)
+        )
+        
+        wards = []
+        for ward, active_beds in result.all():
+            ward.beds_count = active_beds or 0
+            wards.append(ward)
+        return wards
 
     async def get_ward_by_id(self, ward_id: str) -> Optional[Ward]:
         """Return a single Ward by primary key, or None if absent."""
-        result = await self._session.execute(
-            select(Ward).where(Ward.id == ward_id)
+        bed_count_sub = (
+            select(func.count(Bed.id).label("active_beds"))
+            .where((Bed.ward_id == ward_id) & (Bed.is_deleted == False))
+            .scalar_subquery()
         )
-        return result.scalar_one_or_none()
+
+        result = await self._session.execute(
+            select(Ward, bed_count_sub).where(Ward.id == ward_id)
+        )
+        row = result.one_or_none()
+        if not row:
+            return None
+        
+        ward, active_beds = row
+        ward.beds_count = active_beds or 0
+        return ward
 
     async def upsert_ward(
         self,
@@ -104,16 +134,28 @@ class MasterDataRepository:
         return ward
 
     async def get_beds_by_ward(self, ward_id: str) -> List[Bed]:
-        """Return all beds in a ward."""
+        """Return all non-deleted beds in a ward."""
         result = await self._session.execute(
-            select(Bed).where(Bed.ward_id == ward_id).order_by(Bed.code)
+            select(Bed)
+            .where((Bed.ward_id == ward_id) & (Bed.is_deleted == False))
+            .order_by(Bed.code)
+        )
+        return list(result.scalars().all())
+
+    async def get_all_beds(self) -> List[Bed]:
+        """Return all registered, non-deleted beds in the hospital."""
+        result = await self._session.execute(
+            select(Bed)
+            .where(Bed.is_deleted == False)
+            .order_by(Bed.code)
         )
         return list(result.scalars().all())
 
     async def get_bed_by_id(self, bed_id: str) -> Optional[Bed]:
-        """Return a single bed by ID."""
+        """Return a single non-deleted bed by ID."""
         result = await self._session.execute(
-            select(Bed).where(Bed.id == bed_id)
+            select(Bed)
+            .where((Bed.id == bed_id) & (Bed.is_deleted == False))
         )
         return result.scalar_one_or_none()
 
@@ -137,7 +179,8 @@ class MasterDataRepository:
             raise EntityNotFoundError(f"Ward {ward_id} not found.")
         
         count_result = await self._session.execute(
-            select(func.count(Bed.id)).where(Bed.ward_id == ward_id)
+            select(func.count(Bed.id))
+            .where((Bed.ward_id == ward_id) & (Bed.is_deleted == False))
         )
         actual_count = count_result.scalar() or 0
         ward.beds_count = actual_count

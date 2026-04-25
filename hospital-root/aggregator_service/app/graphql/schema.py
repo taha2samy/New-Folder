@@ -135,3 +135,8 @@ class DispenseResponse:
     success: bool
     message: str
     quantity_dispensed: int
+
+@strawberry.type
+class MarkBedResponse:
+    success: bool
+    bed: Optional[BedType] = None

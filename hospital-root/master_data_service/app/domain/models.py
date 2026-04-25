@@ -75,8 +75,9 @@ class Bed(Base):
     id       = Column(String, primary_key=True, default=_generate_uuid)
     code     = Column(String, nullable=False) # e.g. B-101
     ward_id  = Column(String, ForeignKey("wards.id"), nullable=False, index=True)
-    status   = Column(Enum(BedStatusEnum), nullable=False, default=BedStatusEnum.AVAILABLE)
-    category = Column(String, nullable=False, default="GENERAL") # e.g. PRIVATE, SEMI-PRIVATE
+    status     = Column(Enum(BedStatusEnum), nullable=False, default=BedStatusEnum.AVAILABLE)
+    category   = Column(String, nullable=False, default="GENERAL") # e.g. PRIVATE, SEMI-PRIVATE
+    is_deleted = Column(Boolean, nullable=False, default=False)
 
     ward = relationship("Ward", back_populates="beds")
 

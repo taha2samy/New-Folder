@@ -23,6 +23,7 @@ from app.graphql.schema import (
     ExamTypeRef,
     OperationTypeRef,
     BillItemType,
+    MarkBedResponse,
 )
 from app.generated import master_data_pb2
 from app.grpc_clients.clinical_client import ClinicalClient
@@ -255,3 +256,24 @@ class Mutation:
         pharmacy_client: PharmacyClient = client_refs["pharmacy"]
         result = await pharmacy_client.dispense_medicine(pharmaceutical_id, quantity, patient_id, metadata)
         return DispenseResponse(**result)
+
+    @strawberry.mutation
+    async def mark_bed_as_ready(self, info: Info, bed_id: strawberry.ID) -> MarkBedResponse:
+        context = info.context
+        user_id = context.user_id
+        
+        master_client: MasterDataClient = client_refs["master_data"]
+        # RPC: MarkBedAvailable(BedQuery) returns (BedMessage)
+        result = await master_client.mark_bed_available(str(bed_id), user_id)
+        
+        if result:
+            bed_dto = BedType(
+                id=result["id"],
+                code=result["code"],
+                ward_id=result["ward_id"],
+                status=_BED_STATUS_MAP.get(result["status"], BedStatus.AVAILABLE),
+                category=result.get("category", "")
+            )
+            return MarkBedResponse(success=True, bed=bed_dto)
+        
+        return MarkBedResponse(success=False)

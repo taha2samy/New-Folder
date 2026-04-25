@@ -322,6 +322,58 @@ class MasterDataServiceHandler(master_data_pb2_grpc.MasterDataServiceServicer):
             logger.exception("GetBed error: %s", exc)
             await context.abort(grpc.StatusCode.INTERNAL, "Error retrieving bed.")
 
+    async def MarkBedAvailable(self, request, context):
+        """Transitions a bed from CLEANING back to AVAILABLE."""
+        try:
+            async with self._db_session_factory() as session:
+                async with session.begin():
+                    repo = MasterDataRepository(session)
+                    bed = await repo.get_bed_by_id(request.bed_id)
+                    if not bed:
+                        await context.abort(grpc.StatusCode.NOT_FOUND, f"Bed {request.bed_id} not found.")
+                    
+                    if bed.status != BedStatusEnum.CLEANING:
+                        # Log but proceed? Or strict check? Requirement says "reset the status from CLEANING to AVAILABLE"
+                        logger.warning("Attempted to mark bed %s as ready, but it was in status %s", bed.id, bed.status)
+                    
+                    bed.status = BedStatusEnum.AVAILABLE
+            
+            return master_data_pb2.BedMessage(
+                bed_id=bed.id,
+                bed_code=bed.code,
+                ward_id=bed.ward_id,
+                status=master_data_pb2.BedStatus.AVAILABLE,
+                category=bed.category,
+            )
+        except EntityNotFoundError as exc:
+            await context.abort(grpc.StatusCode.NOT_FOUND, str(exc))
+        except Exception as exc:
+            logger.exception("MarkBedAvailable error: %s", exc)
+            await context.abort(grpc.StatusCode.INTERNAL, "Error marking bed as available.")
+
+    async def GetAllBeds(self, request, context):
+        """Returns all registered beds in the system."""
+        try:
+            async with self._db_session_factory() as session:
+                repo = MasterDataRepository(session)
+                beds = await repo.get_all_beds()
+
+            return master_data_pb2.BedsResponse(
+                beds=[
+                    master_data_pb2.BedMessage(
+                        bed_id=b.id,
+                        bed_code=b.code,
+                        ward_id=b.ward_id,
+                        status=_BED_STATUS_MAP.get(b.status, master_data_pb2.BedStatus.AVAILABLE),
+                        category=b.category,
+                    )
+                    for b in beds
+                ]
+            )
+        except Exception as exc:
+            logger.exception("GetAllBeds error: %s", exc)
+            await context.abort(grpc.StatusCode.INTERNAL, "Error retrieving all beds.")
+
     # ------------------------------------------------------------------
     # Write RPCs (Admin-only — enforced by AuthInterceptor)
     # ------------------------------------------------------------------

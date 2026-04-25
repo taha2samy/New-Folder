@@ -6,6 +6,9 @@ class Settings(BaseSettings):
     KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
     JWT_SECRET_KEY: str = "supersecretkey"
     JWT_ALGORITHM: str = "HS256"
+    
+    MASTER_DATA_SERVICE_ADDR: str = "localhost:50055"
+    CLINICAL_SERVICE_ADDR: str = "localhost:50051"
 
     class Config:
         env_file = ".env"

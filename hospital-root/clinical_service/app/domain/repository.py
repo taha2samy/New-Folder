@@ -61,6 +61,18 @@ class ClinicalRepository(ClinicalRepositoryProtocol):
         result = await self.session.execute(stmt)
         return result.scalars().first() is not None
 
+    async def get_active_admissions(self) -> List[Encounter]:
+        """Return all active admissions."""
+        stmt = select(Encounter).where(
+            and_(
+                Encounter.encounter_type == "ADMISSION",
+                Encounter.status == "ACTIVE",
+                Encounter.is_deleted == False
+            )
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def create_encounter(self, encounter: Encounter) -> Encounter:
         self.session.add(encounter)
         return encounter

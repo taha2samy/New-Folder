@@ -177,6 +177,18 @@ class ClinicalEncounterServiceHandler(clinical_pb2_grpc.ClinicalEncounterService
         logger.info(f"[Trace: {trace_id}] User {user_id} recording surgery {request.surgery_id}")
         return clinical_pb2.SurgeryResponse(id=request.surgery_id, status="COMPLETED")
 
+    async def GetActiveAdmissions(self, request, context):
+        """Returns a stream of all active admissions for billing/housekeeping."""
+        try:
+            async with self.db_session_factory() as session:
+                repo = ClinicalRepository(session)
+                admissions = await repo.get_active_admissions()
+                for adm in admissions:
+                    yield self._map_to_proto(adm)
+        except Exception as e:
+            logger.error(f"GetActiveAdmissions Error: {e}")
+            await context.abort(grpc.StatusCode.INTERNAL, "Error streaming active admissions.")
+
     def _map_to_proto(self, encounter: Encounter) -> clinical_pb2.EncounterResponse:
         return clinical_pb2.EncounterResponse(
             encounter_id=encounter.id,

@@ -18,6 +18,7 @@ Idempotency:
 import asyncio
 import json
 import logging
+import datetime
 from decimal import Decimal
 
 from aiokafka import AIOKafkaConsumer
@@ -26,6 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.core.config import settings
 from app.domain.repository import BillingRepository
 from app.grpc_clients.master_data_client import MasterDataClient
+from app.grpc_clients.clinical_client import ClinicalClient
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +50,7 @@ class BillingEventConsumer:
         self._session_factory = session_factory
         self._consumer: AIOKafkaConsumer | None = None
         self._master_data_client = MasterDataClient()
+        self._clinical_client = ClinicalClient()
         self._running = False
 
     # ------------------------------------------------------------------
@@ -208,38 +211,64 @@ class BillingEventConsumer:
         async with self._session_factory() as session:
             repo = BillingRepository(session)
 
-            # Apply flat consultation fee
+            # Apply flat setup fee for patient encounter
             await repo.add_bill_item(
                 patient_id=patient_id,
-                item_type="CONSULTATION",
-                reference_id=f"{event_id}_CONSULT",
+                item_type="ADMISSION_SETUP", # renamed for clarity
+                reference_id=f"{event_id}_SETUP",
                 quantity=Decimal("1"),
                 amount=CONSULTATION_FEE,
             )
 
-            # If ADMISSION, apply bed nightly rates based on category
-            encounter_type = payload.get("encounter_type")
-            bed_id = payload.get("bed_id")
-
-            if encounter_type == "ADMISSION" and bed_id:
-                bed_info = await self._master_data_client.get_bed(bed_id)
-                if bed_info:
-                    category = bed_info.get("category", "GENERAL")
-                    bed_price = await repo.get_price("BED", category) or Decimal("100.00")
-
-                    await repo.add_bill_item(
-                        patient_id=patient_id,
-                        item_type="BED_CHARGE",
-                        reference_id=f"{event_id}_BED",
-                        quantity=Decimal("1"),
-                        amount=bed_price,
-                    )
-                    logger.info(
-                        "Bed charge applied | patient=%s bed=%s category=%s amount=%s",
-                        patient_id, bed_id, category, bed_price
-                    )
+            # No immediate bed charge here. Recurring billing handles it.
+            # (Remove the immediate charge logic)
+            pass
 
             logger.info(
                 "EncounterCreated processed | patient=%s encounter=%s trace_id=%s",
                 patient_id, encounter_id, trace_id,
             )
+
+    # ------------------------------------------------------------------
+    # Midnight Recurring Billing (Background Simulation)
+    # ------------------------------------------------------------------
+
+    async def process_midnight_billing(self) -> None:
+        """
+        Iterates over all active admissions and applies a daily bed charge.
+        Typically triggered by a cron job or background scheduler.
+        """
+        logger.info("Starting midnight recurring billing cycle...")
+        admissions = await self._clinical_client.get_active_admissions()
+        
+        async with self._session_factory() as session:
+            repo = BillingRepository(session)
+            # Use current date as part of idempotency key (YYYY-MM-DD)
+            today_str = datetime.datetime.utcnow().strftime("%Y-%m-%d")
+            
+            for adm in admissions:
+                bed_id = adm.get("bed_id")
+                patient_id = adm.get("patient_id")
+                encounter_id = adm.get("encounter_id")
+                
+                if not bed_id: continue
+
+                bed_info = await self._master_data_client.get_bed(bed_id)
+                if bed_info:
+                    category = bed_info.get("category", "GENERAL")
+                    bed_price = await repo.get_price("BED", category) or Decimal("100.00")
+                    
+                    # Idempotency: reference_id = <encounter_id>_BED_<date>
+                    await repo.add_bill_item(
+                        patient_id=patient_id,
+                        item_type="BED_CHARGE",
+                        reference_id=f"{encounter_id}_BED_{today_str}",
+                        quantity=Decimal("1"),
+                        amount=bed_price,
+                    )
+                    logger.info(
+                        "Daily bed charge applied | patient=%s bed=%s date=%s",
+                        patient_id, bed_id, today_str
+                    )
+        
+        logger.info("Midnight billing cycle completed.")

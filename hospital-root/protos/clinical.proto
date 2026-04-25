@@ -11,7 +11,10 @@ service ClinicalEncounterService {
   rpc CreateAppointment(AppointmentRequest) returns (AppointmentResponse);
   rpc ScheduleSurgery(SurgeryRequest) returns (SurgeryResponse);
   rpc RecordSurgery(RecordSurgeryRequest) returns (SurgeryResponse);
+  rpc GetActiveAdmissions(EmptyRequest) returns (stream EncounterResponse);
 }
+
+message EmptyRequest {}
 
 message Vitals {
   double blood_pressure_systolic = 1;
