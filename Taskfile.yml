@@ -29,7 +29,8 @@ includes:
     dir: ./hospital-root/aggregator_service
 
 tasks:
-  generate:all:
+  
+  all:generate:
     desc: Regenerate all gRPC definitions across all microservices
     cmds:
       - task: master_data:generate
@@ -39,8 +40,17 @@ tasks:
       - task: laboratory:generate
       - task: billing:generate
       - task: aggregator:generate
-
-  migrate:all:
+  all:install:
+    desc: Install dependencies for all services
+    cmds:
+      - task: master_data:setup
+      - task: patient:setup
+      - task: clinical:setup
+      - task: pharmacy:setup
+      - task: laboratory:setup
+      - task: billing:setup
+      - task: aggregator:setup
+  all:migrate:
     desc: Run standard migrations across all services sequentially
     cmds:
       - pipenv run --cwd ./hospital-root/master_data_service alembic upgrade head
@@ -49,14 +59,13 @@ tasks:
       - pipenv run --cwd ./hospital-root/pharmacy_service alembic upgrade head
       - pipenv run --cwd ./hospital-root/laboratory_service alembic upgrade head
 
-  test:all:
-    desc: Triggers pytest across all microservices
+  just:
+    desc: Iterates through services and runs external pack build commands
     cmds:
-      - task: patient:test
-      - task: clinical:test
-      - task: aggregator:test
+      - task: build:pack
+        vars: { SVC: "master_data_service", IMG: "hms-master-data-service:latest" }
 
-  build:all:
+  build:
     desc: Iterates through services and runs external pack build commands
     cmds:
       - task: build:pack
@@ -75,7 +84,7 @@ tasks:
   build:pack:
     internal: true
     cmds:
-      - pack build {{.IMG}} --path ./hospital-root/{{.SVC}} --builder paketobuildpacks/builder:base
+      - pack build {{.IMG}} --path ./hospital-root/{{.SVC}} --builder paketobuildpacks/builder-noble-base --run-image my-ubuntu-run:latest
 
   up:
     desc: Starts the infrastructure and all services in detached mode

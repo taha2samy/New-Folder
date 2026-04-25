@@ -19,6 +19,10 @@ tasks:
     desc: "Run database migrations"
     cmds:
       - PYTHONPATH=. pipenv run alembic upgrade head
+  gen-reqs:
+    desc: "Convert Pipfile to requirements.txt"
+    cmds:
+      - PYTHONPATH=. pipenv requirements > requirements.txt
 
   run:
     desc: "Start the local dev server"

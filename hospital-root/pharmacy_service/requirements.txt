@@ -1,8 +1,0 @@
-grpcio
-grpcio-tools
-sqlalchemy[asyncio]
-asyncpg
-pydantic-settings
-pyjwt
-confluent-kafka
-alembic

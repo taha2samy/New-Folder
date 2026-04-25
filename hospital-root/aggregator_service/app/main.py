@@ -30,7 +30,11 @@ billing_channel    = None
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
     global patient_channel, clinical_channel, pharmacy_channel, laboratory_channel, master_data_channel, billing_channel
-
+    grpc_options = [
+    ('grpc.keepalive_time_ms', 30000),
+    ('grpc.keepalive_timeout_ms', 10000),
+    ('grpc.keepalive_permit_without_calls', True),
+    ]
     # Open persistent gRPC connection pools to all downstream services.
     patient_channel    = grpc.aio.insecure_channel(settings.PATIENT_SERVICE_ADDR)
     clinical_channel   = grpc.aio.insecure_channel(settings.CLINICAL_SERVICE_ADDR)
