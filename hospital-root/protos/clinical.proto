@@ -37,7 +37,7 @@ message AdmissionRequest {
   string patient_id = 1;
   string doctor_id = 2;
   string ward_id = 3;
-  string bed_number = 4;
+  string bed_id = 4;
 }
 
 message CompleteRequest {
@@ -61,6 +61,7 @@ message EncounterResponse {
   repeated string diagnoses_ids = 7;
   string ward_id = 8;
   double spo2 = 9;
+  string bed_id = 10;
 }
 
 message AppointmentRequest {

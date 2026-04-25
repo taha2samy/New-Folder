@@ -10,7 +10,7 @@ from datetime import datetime
 from functools import lru_cache
 from typing import List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -22,6 +22,8 @@ from app.domain.models import (
     ProcedureTypeEnum,
     Supplier,
     Ward,
+    Bed,
+    BedStatusEnum,
 )
 
 logger = logging.getLogger(__name__)
@@ -100,6 +102,47 @@ class MasterDataRepository:
 
         await self._session.flush()
         return ward
+
+    async def get_beds_by_ward(self, ward_id: str) -> List[Bed]:
+        """Return all beds in a ward."""
+        result = await self._session.execute(
+            select(Bed).where(Bed.ward_id == ward_id).order_by(Bed.code)
+        )
+        return list(result.scalars().all())
+
+    async def get_bed_by_id(self, bed_id: str) -> Optional[Bed]:
+        """Return a single bed by ID."""
+        result = await self._session.execute(
+            select(Bed).where(Bed.id == bed_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def update_bed_status(self, bed_id: str, status: BedStatusEnum) -> Bed:
+        """Update bed status. Raises EntityNotFoundError if missing."""
+        bed = await self.get_bed_by_id(bed_id)
+        if not bed:
+            raise EntityNotFoundError(f"Bed {bed_id} not found.")
+        
+        bed.status = status
+        await self._session.flush()
+        return bed
+
+    async def sync_ward_bed_count(self, ward_id: str) -> int:
+        """
+        Calculates actual bed count and updates the Ward record.
+        Ensures beds_count is dynamically validated.
+        """
+        ward = await self.get_ward_by_id(ward_id)
+        if not ward:
+            raise EntityNotFoundError(f"Ward {ward_id} not found.")
+        
+        count_result = await self._session.execute(
+            select(func.count(Bed.id)).where(Bed.ward_id == ward_id)
+        )
+        actual_count = count_result.scalar() or 0
+        ward.beds_count = actual_count
+        await self._session.flush()
+        return actual_count
 
     # ------------------------------------------------------------------
     # Disease operations

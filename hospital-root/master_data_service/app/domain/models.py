@@ -31,6 +31,14 @@ class ProcedureTypeEnum(str, enum.Enum):
     MANUAL_TEXT       = "MANUAL_TEXT"
 
 
+class BedStatusEnum(str, enum.Enum):
+    """Maps to BedStatus protobuf enum."""
+    AVAILABLE   = "AVAILABLE"
+    OCCUPIED    = "OCCUPIED"
+    CLEANING    = "CLEANING"
+    MAINTENANCE = "MAINTENANCE"
+
+
 # ---------------------------------------------------------------------------
 # Reference Models
 # ---------------------------------------------------------------------------
@@ -52,6 +60,25 @@ class Ward(Base):
     is_opd     = Column(Boolean, nullable=False, default=False)
     created_by = Column(String, nullable=True)   # Admin user ID who last modified the record
     updated_at = Column(DateTime(timezone=True), nullable=True, onupdate=datetime.utcnow)
+
+    beds = relationship("Bed", back_populates="ward", cascade="all, delete-orphan")
+
+
+class Bed(Base):
+    """
+    Represents an individual bed within a ward.
+    Managed lifecycle: AVAILABLE -> OCCUPIED -> CLEANING -> AVAILABLE.
+    """
+
+    __tablename__ = "beds"
+
+    id       = Column(String, primary_key=True, default=_generate_uuid)
+    code     = Column(String, nullable=False) # e.g. B-101
+    ward_id  = Column(String, ForeignKey("wards.id"), nullable=False, index=True)
+    status   = Column(Enum(BedStatusEnum), nullable=False, default=BedStatusEnum.AVAILABLE)
+    category = Column(String, nullable=False, default="GENERAL") # e.g. PRIVATE, SEMI-PRIVATE
+
+    ward = relationship("Ward", back_populates="beds")
 
 
 class DiseaseType(Base):

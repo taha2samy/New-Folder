@@ -25,6 +25,14 @@ service MasterDataService {
   rpc UpsertWard        (UpsertWardRequest)    returns (WardMessage);
   // Creates or updates a Disease record.
   rpc UpsertDisease     (UpsertDiseaseRequest) returns (DiseaseMessage);
+
+  // --- Bed Management RPCs ---
+  // Returns beds within a specific ward.
+  rpc GetBedsByWard     (WardQuery)            returns (BedsResponse);
+  // Idempotently updates a bed's status (AVAILABLE, OCCUPIED, etc.)
+  rpc UpdateBedStatus   (UpdateBedStatusRequest) returns (BedMessage);
+  // Returns a single bed by its ID.
+  rpc GetBed           (BedQuery)             returns (BedMessage);
 }
 
 // ---------------------------------------------------------------------------
@@ -55,6 +63,42 @@ message UpsertWardRequest {
   string name       = 3;
   int32  beds_count = 4;
   bool   is_opd     = 5;
+}
+
+message WardQuery {
+  string ward_id = 1;
+}
+
+message BedQuery {
+  string bed_id = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Bed Messages
+// ---------------------------------------------------------------------------
+
+enum BedStatus {
+  AVAILABLE   = 0;
+  OCCUPIED    = 1;
+  CLEANING    = 2;
+  MAINTENANCE = 3;
+}
+
+message BedMessage {
+  string    bed_id   = 1;
+  string    bed_code = 2;
+  string    ward_id  = 3;
+  BedStatus status   = 4;
+  string    category = 5; // e.g. GENERAL, SEMI-PRIVATE, PRIVATE
+}
+
+message BedsResponse {
+  repeated BedMessage beds = 1;
+}
+
+message UpdateBedStatusRequest {
+  string    bed_id = 1;
+  BedStatus status = 2;
 }
 
 // ---------------------------------------------------------------------------

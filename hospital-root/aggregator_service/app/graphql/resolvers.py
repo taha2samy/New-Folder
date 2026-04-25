@@ -14,20 +14,30 @@ from app.graphql.schema import (
     MedicationType,
     PatientSummary,
     PatientType,
+    BillingSummaryType,
     ReferenceDataSummary,
     WardType,
+    BedType,
+    BedStatus,
     DiseaseRefType,
     ExamTypeRef,
     OperationTypeRef,
     BillItemType,
-    BillingSummaryType,
 )
+from app.generated import master_data_pb2
 from app.grpc_clients.clinical_client import ClinicalClient
 from app.grpc_clients.laboratory_client import LaboratoryClient
 from app.grpc_clients.patient_client import PatientClient
 from app.grpc_clients.pharmacy_client import PharmacyClient
 from app.grpc_clients.master_data_client import MasterDataClient
 from app.grpc_clients.billing_client import BillingClient
+
+_BED_STATUS_MAP = {
+    master_data_pb2.BedStatus.AVAILABLE:   BedStatus.AVAILABLE,
+    master_data_pb2.BedStatus.OCCUPIED:    BedStatus.OCCUPIED,
+    master_data_pb2.BedStatus.CLEANING:    BedStatus.CLEANING,
+    master_data_pb2.BedStatus.MAINTENANCE: BedStatus.MAINTENANCE,
+}
 
 client_refs = {
     "patient": None,
@@ -182,6 +192,57 @@ class Query:
             medications=medications_list,
             lab_results=lab_results_list,
             billing=billing_summary,
+        )
+
+    @strawberry.field
+    async def get_reference_data(self, info: Info) -> ReferenceDataSummary:
+        context = info.context
+        token = context.token
+        user_id = context.user_id if hasattr(context, "user_id") else "anonymous"
+        
+        master_data_client: MasterDataClient = client_refs["master_data"]
+        
+        # Parallelise top-level reference data fetching
+        wards_fut = master_data_client.get_wards(user_id)
+        diseases_fut = master_data_client.get_diseases(user_id)
+        exams_fut = master_data_client.get_exam_types(user_id)
+        ops_fut = master_data_client.get_operation_types(user_id)
+        
+        wards_raw, diseases_raw, exams_raw, ops_raw = await asyncio.gather(
+            wards_fut, diseases_fut, exams_fut, ops_fut
+        )
+        
+        wards_list = []
+        for w in wards_raw:
+            beds_raw = await master_data_client.get_beds(user_id, w["id"])
+            beds = [
+                BedType(
+                    id=b["id"],
+                    code=b["code"],
+                    ward_id=b["ward_id"],
+                    status=_BED_STATUS_MAP.get(b["status"], BedStatus.AVAILABLE),
+                    category=b["category"]
+                ) for b in beds_raw
+            ]
+            
+            wards_list.append(WardType(
+                id=w["id"],
+                code=w["code"],
+                name=w["name"],
+                beds_count=w["beds_count"],
+                is_opd=w["is_opd"],
+                beds=beds
+            ))
+
+        diseases_list = [DiseaseRefType(**d) for d in diseases_raw]
+        exams_list = [ExamTypeRef(**e) for e in exams_raw]
+        ops_list = [OperationTypeRef(**o) for o in ops_raw]
+        
+        return ReferenceDataSummary(
+            wards=wards_list,
+            diseases=diseases_list,
+            exam_types=exams_list,
+            operation_types=ops_list
         )
 
 @strawberry.type

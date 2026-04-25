@@ -99,3 +99,22 @@ class MasterDataClient:
         except grpc.RpcError as e:
             logger.error("MasterDataService.GetOperationTypes failed: %s", e.details())
             return []
+
+    async def get_beds(self, user_id: str, ward_id: str) -> List[Dict[str, Any]]:
+        """Fetch beds for a ward."""
+        try:
+            req = master_data_pb2.WardQuery(ward_id=ward_id)
+            res = await self.stub.GetBedsByWard(req, metadata=self._get_metadata(user_id))
+            return [
+                {
+                    "id": b.bed_id,
+                    "code": b.bed_code,
+                    "ward_id": b.ward_id,
+                    "status": b.status,
+                    "category": b.category,
+                }
+                for b in res.beds
+            ]
+        except grpc.RpcError as e:
+            logger.error("MasterDataService.GetBedsByWard failed: %s", e.details())
+            return []

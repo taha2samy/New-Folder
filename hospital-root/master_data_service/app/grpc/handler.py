@@ -14,7 +14,7 @@ from typing import Any, Dict, Optional
 import grpc
 
 from app.generated import master_data_pb2, master_data_pb2_grpc
-from app.domain.models import ProcedureTypeEnum
+from app.domain.models import ProcedureTypeEnum, BedStatusEnum
 from app.domain.repository import EntityNotFoundError, MasterDataRepository
 from app.events.producers import MasterDataEventProducer
 
@@ -53,6 +53,15 @@ _PROCEDURE_TYPE_MAP = {
     ProcedureTypeEnum.MULTIPLE_BOOLEAN: master_data_pb2.ProcedureType.MULTIPLE_BOOLEAN,
     ProcedureTypeEnum.MANUAL_TEXT:      master_data_pb2.ProcedureType.MANUAL_TEXT,
 }
+
+_BED_STATUS_MAP = {
+    BedStatusEnum.AVAILABLE:   master_data_pb2.BedStatus.AVAILABLE,
+    BedStatusEnum.OCCUPIED:    master_data_pb2.BedStatus.OCCUPIED,
+    BedStatusEnum.CLEANING:    master_data_pb2.BedStatus.CLEANING,
+    BedStatusEnum.MAINTENANCE: master_data_pb2.BedStatus.MAINTENANCE,
+}
+
+_PROTO_BED_STATUS_MAP = {v: k for k, v in _BED_STATUS_MAP.items()}
 
 
 # ---------------------------------------------------------------------------
@@ -245,6 +254,73 @@ class MasterDataServiceHandler(master_data_pb2_grpc.MasterDataServiceServicer):
         except Exception as exc:
             logger.exception("GetSuppliers error: %s", exc)
             await context.abort(grpc.StatusCode.INTERNAL, "Error retrieving suppliers.")
+
+    async def GetBedsByWard(self, request, context):
+        try:
+            async with self._db_session_factory() as session:
+                repo = MasterDataRepository(session)
+                beds = await repo.get_beds_by_ward(request.ward_id)
+
+            return master_data_pb2.BedsResponse(
+                beds=[
+                    master_data_pb2.BedMessage(
+                        bed_id=b.id,
+                        bed_code=b.code,
+                        ward_id=b.ward_id,
+                        status=_BED_STATUS_MAP.get(b.status, master_data_pb2.BedStatus.AVAILABLE),
+                        category=b.category,
+                    )
+                    for b in beds
+                ]
+            )
+        except Exception as exc:
+            logger.exception("GetBedsByWard error: %s", exc)
+            await context.abort(grpc.StatusCode.INTERNAL, "Error retrieving beds.")
+
+    async def UpdateBedStatus(self, request, context):
+        user_id = self._extract_caller(context)
+        status_enum = _PROTO_BED_STATUS_MAP.get(request.status)
+        if status_enum is None:
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid bed status.")
+
+        try:
+            async with self._db_session_factory() as session:
+                async with session.begin():
+                    repo = MasterDataRepository(session)
+                    bed = await repo.update_bed_status(request.bed_id, status_enum)
+            
+            return master_data_pb2.BedMessage(
+                bed_id=bed.id,
+                bed_code=bed.code,
+                ward_id=bed.ward_id,
+                status=_BED_STATUS_MAP.get(bed.status),
+                category=bed.category,
+            )
+        except EntityNotFoundError as exc:
+            await context.abort(grpc.StatusCode.NOT_FOUND, str(exc))
+        except Exception as exc:
+            logger.exception("UpdateBedStatus error: %s", exc)
+            await context.abort(grpc.StatusCode.INTERNAL, "Error updating bed status.")
+
+    async def GetBed(self, request, context):
+        try:
+            async with self._db_session_factory() as session:
+                repo = MasterDataRepository(session)
+                bed = await repo.get_bed_by_id(request.bed_id)
+            
+            if not bed:
+                await context.abort(grpc.StatusCode.NOT_FOUND, f"Bed {request.bed_id} not found.")
+            
+            return master_data_pb2.BedMessage(
+                bed_id=bed.id,
+                bed_code=bed.code,
+                ward_id=bed.ward_id,
+                status=_BED_STATUS_MAP.get(bed.status),
+                category=bed.category,
+            )
+        except Exception as exc:
+            logger.exception("GetBed error: %s", exc)
+            await context.abort(grpc.StatusCode.INTERNAL, "Error retrieving bed.")
 
     # ------------------------------------------------------------------
     # Write RPCs (Admin-only — enforced by AuthInterceptor)

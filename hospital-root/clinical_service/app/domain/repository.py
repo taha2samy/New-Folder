@@ -17,14 +17,14 @@ class ClinicalRepository(ClinicalRepositoryProtocol):
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def is_bed_occupied(self, ward_id: str, bed_number: str) -> bool:
+    async def is_bed_occupied(self, ward_id: str, bed_id: str) -> bool:
         """
-        Checks if a bed is occupied in a specific ward
+        Checks if a bed is occupied in a specific ward (local check)
         """
         stmt = select(Encounter).where(
             and_(
                 Encounter.ward_id == ward_id,
-                Encounter.bed_number == bed_number,
+                Encounter.bed_id == bed_id,
                 Encounter.status == "ACTIVE",      # The bed is occupied only if the status is active
                 Encounter.is_deleted == False      # and the record is not deleted
             )

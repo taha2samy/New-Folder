@@ -66,3 +66,32 @@ class MasterDataClient:
                 await asyncio.sleep(base_delay * (2 ** attempt))
                 
         return []
+
+    async def get_beds_by_ward(self, ward_id: str, jwt_token: str) -> List[Dict[str, Any]]:
+        """Retrieves beds for a ward."""
+        request = master_data_pb2.WardQuery(ward_id=ward_id)
+        metadata = (("authorization", f"Bearer {jwt_token}"),)
+        try:
+            response = await self.stub.GetBedsByWard(request, metadata=metadata)
+            return [
+                {
+                    "id": b.bed_id,
+                    "code": b.bed_code,
+                    "status": b.status,
+                    "category": b.category
+                } for b in response.beds
+            ]
+        except grpc.RpcError as e:
+            logger.error(f"Error calling MasterDataService GetBedsByWard: {e}")
+            return []
+
+    async def update_bed_status(self, bed_id: str, status: int, jwt_token: str) -> bool:
+        """Updates bed status (idempotent)."""
+        request = master_data_pb2.UpdateBedStatusRequest(bed_id=bed_id, status=status)
+        metadata = (("authorization", f"Bearer {jwt_token}"),)
+        try:
+            await self.stub.UpdateBedStatus(request, metadata=metadata)
+            return True
+        except grpc.RpcError as e:
+            logger.error(f"Error calling MasterDataService UpdateBedStatus: {e}")
+            return False

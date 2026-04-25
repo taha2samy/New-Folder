@@ -16,7 +16,7 @@ class Encounter(Base):
     encounter_type = Column(String(20), nullable=False) # OPD, ADMISSION
     status = Column(String(20), nullable=False, default="ACTIVE") # ACTIVE, COMPLETED, SUSPENDED
     ward_id = Column(String(50), nullable=True)
-    bed_number = Column(String(20), nullable=True)
+    bed_id = Column(String(50), nullable=True)
     notes = Column(String, nullable=True)
     
     is_deleted = Column(Boolean, default=False, nullable=False)

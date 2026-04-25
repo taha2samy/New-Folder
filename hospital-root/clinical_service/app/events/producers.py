@@ -15,22 +15,38 @@ class EncounterEventProducer:
     async def start(self): await self.producer.start()
     async def stop(self):  await self.producer.stop()
 
-    def broadcast_encounter_created(self, encounter_id: str, patient_id: str, encounter_type: str):
+    def broadcast_encounter_created(self, encounter_id: str, patient_id: str, encounter_type: str, bed_id: str = ""):
+        import uuid
         payload = {
+            "event_id": str(uuid.uuid4()),
             "event_type": "EncounterCreated",
             "encounter_id": encounter_id,
             "patient_id": patient_id,
-            "encounter_type": encounter_type
+            "encounter_type": encounter_type,
+            "bed_id": bed_id
         }
-        asyncio.create_task(self._send_event("clinical_lifecycle", payload))
+        asyncio.create_task(self._send_event("hospital.clinical.encounters", payload))
 
     def broadcast_encounter_completed(self, encounter_id: str, patient_id: str):
+        import uuid
         payload = {
+            "event_id": str(uuid.uuid4()),
             "event_type": "EncounterCompleted",
             "encounter_id": encounter_id,
             "patient_id": patient_id
         }
-        asyncio.create_task(self._send_event("clinical_lifecycle", payload))
+        asyncio.create_task(self._send_event("hospital.clinical.encounters", payload))
+
+    def broadcast_bed_status_changed(self, bed_id: str, status: str, ward_id: str):
+        import uuid
+        payload = {
+            "event_id": str(uuid.uuid4()),
+            "event_type": "BedStatusChanged",
+            "bed_id": bed_id,
+            "status": status,
+            "ward_id": ward_id
+        }
+        asyncio.create_task(self._send_event("hospital.clinical.lifecycle", payload))
 
     async def _send_event(self, topic: str, payload: dict):
         try:

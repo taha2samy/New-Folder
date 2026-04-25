@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import settings
 from app.domain.repository import BillingRepository
+from app.grpc_clients.master_data_client import MasterDataClient
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,7 @@ class BillingEventConsumer:
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
         self._consumer: AIOKafkaConsumer | None = None
+        self._master_data_client = MasterDataClient()
         self._running = False
 
     # ------------------------------------------------------------------
@@ -183,7 +185,9 @@ class BillingEventConsumer:
             "event_type":   "EncounterCreated",
             "event_id":     "<uuid>",          # idempotency key
             "patient_id":   "<uuid>",
-            "encounter_id": "<uuid>"
+            "encounter_id": "<uuid>",
+            "encounter_type": "ADMISSION",
+            "bed_id":       "<uuid>"
           }
         """
         event_type = payload.get("event_type", "")
@@ -204,20 +208,38 @@ class BillingEventConsumer:
         async with self._session_factory() as session:
             repo = BillingRepository(session)
 
-            result = await repo.add_bill_item(
+            # Apply flat consultation fee
+            await repo.add_bill_item(
                 patient_id=patient_id,
                 item_type="CONSULTATION",
-                reference_id=event_id,  # event_id as idempotency key
+                reference_id=f"{event_id}_CONSULT",
                 quantity=Decimal("1"),
                 amount=CONSULTATION_FEE,
             )
-            if result is None:
-                logger.info(
-                    "Duplicate EncounterCreated skipped | event_id=%s trace_id=%s",
-                    event_id, trace_id,
-                )
-            else:
-                logger.info(
-                    "Consultation fee added | patient=%s encounter=%s amount=%s trace_id=%s",
-                    patient_id, encounter_id, CONSULTATION_FEE, trace_id,
-                )
+
+            # If ADMISSION, apply bed nightly rates based on category
+            encounter_type = payload.get("encounter_type")
+            bed_id = payload.get("bed_id")
+
+            if encounter_type == "ADMISSION" and bed_id:
+                bed_info = await self._master_data_client.get_bed(bed_id)
+                if bed_info:
+                    category = bed_info.get("category", "GENERAL")
+                    bed_price = await repo.get_price("BED", category) or Decimal("100.00")
+
+                    await repo.add_bill_item(
+                        patient_id=patient_id,
+                        item_type="BED_CHARGE",
+                        reference_id=f"{event_id}_BED",
+                        quantity=Decimal("1"),
+                        amount=bed_price,
+                    )
+                    logger.info(
+                        "Bed charge applied | patient=%s bed=%s category=%s amount=%s",
+                        patient_id, bed_id, category, bed_price
+                    )
+
+            logger.info(
+                "EncounterCreated processed | patient=%s encounter=%s trace_id=%s",
+                patient_id, encounter_id, trace_id,
+            )

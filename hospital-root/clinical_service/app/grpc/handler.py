@@ -3,7 +3,7 @@
 import logging
 import functools
 import grpc
-from app.generated import clinical_pb2, clinical_pb2_grpc
+from app.generated import clinical_pb2, clinical_pb2_grpc, master_data_pb2
 from app.domain.repository import ClinicalRepository
 from app.domain.models import Encounter, VitalSign, Diagnosis
 from app.events.producers import EncounterEventProducer
@@ -69,20 +69,22 @@ class ClinicalEncounterServiceHandler(clinical_pb2_grpc.ClinicalEncounterService
         logger.info(f"[Trace: {trace_id}] User {user_id} starting Admission for {request.patient_id}")
         await self._validate_patient(request.patient_id, token, context)
 
-        # Validate Ward ID against Master Data Service
-        if request.ward_id:
-            wards_list = await self.master_data_client.get_wards(token)
-            ward_ids = {w["id"] for w in wards_list}
-            if request.ward_id not in ward_ids:
-                await context.abort(grpc.StatusCode.FAILED_PRECONDITION, f"Ward {request.ward_id} does not exist.")
+        # Validate Bed status via Master Data Service
+        if request.ward_id and request.bed_id:
+            beds_list = await self.master_data_client.get_beds_by_ward(request.ward_id, token)
+            selected_bed = next((b for b in beds_list if b["id"] == request.bed_id), None)
+            
+            if not selected_bed:
+                await context.abort(grpc.StatusCode.NOT_FOUND, f"Bed {request.bed_id} not found in Ward {request.ward_id}.")
+            
+            if selected_bed["status"] != master_data_pb2.BedStatus.AVAILABLE:
+                await context.abort(grpc.StatusCode.FAILED_PRECONDITION, f"Bed {request.bed_id} is not AVAILABLE (Status: {selected_bed['status']}).")
 
         try:
             async with self.db_session_factory() as session:
                 repo = ClinicalRepository(session)
                 if await repo.has_active_admission(request.patient_id):
                     await context.abort(grpc.StatusCode.ALREADY_EXISTS, "Patient already admitted.")
-                if await repo.is_bed_occupied(request.ward_id, request.bed_number):
-                    await context.abort(grpc.StatusCode.FAILED_PRECONDITION, f"Bed {request.bed_number} in Ward {request.ward_id} is already occupied.")
 
                 async with session.begin():
                     encounter = Encounter(
@@ -90,11 +92,16 @@ class ClinicalEncounterServiceHandler(clinical_pb2_grpc.ClinicalEncounterService
                         doctor_id=request.doctor_id,
                         encounter_type="ADMISSION",
                         ward_id=request.ward_id,
-                        bed_number=request.bed_number
+                        bed_id=request.bed_id
                     )
                     await repo.create_encounter(encounter)
+            
+            # Atomic Operation: Update bed status to OCCUPIED
+            await self.master_data_client.update_bed_status(request.bed_id, master_data_pb2.BedStatus.OCCUPIED, token)
+            
+            self.event_producer.broadcast_bed_status_changed(request.bed_id, "OCCUPIED", request.ward_id)
                     
-            self.event_producer.broadcast_encounter_created(encounter.id, encounter.patient_id, encounter.encounter_type)
+            self.event_producer.broadcast_encounter_created(encounter.id, encounter.patient_id, encounter.encounter_type, request.bed_id)
             return self._map_to_proto(encounter)
         except grpc.RpcError: raise
         except Exception as e:
@@ -126,6 +133,12 @@ class ClinicalEncounterServiceHandler(clinical_pb2_grpc.ClinicalEncounterService
                         encounter.diagnoses.append(Diagnosis(disease_id=dx_id))
                         
             self.event_producer.broadcast_encounter_completed(encounter.id, encounter.patient_id)
+            
+            # Automatically trigger bed cleaning if it was an admission
+            if encounter.encounter_type == "ADMISSION" and encounter.bed_id:
+                await self.master_data_client.update_bed_status(encounter.bed_id, master_data_pb2.BedStatus.CLEANING, token)
+                self.event_producer.broadcast_bed_status_changed(encounter.bed_id, "CLEANING", encounter.ward_id)
+
             return self._map_to_proto(encounter)
         except grpc.RpcError: raise
         except Exception as e:
@@ -174,5 +187,6 @@ class ClinicalEncounterServiceHandler(clinical_pb2_grpc.ClinicalEncounterService
             created_at=int(encounter.created_at.timestamp() if encounter.created_at else 0),
             diagnoses_ids=[d.disease_id for d in encounter.diagnoses] if getattr(encounter, "diagnoses", None) else [],
             ward_id=encounter.ward_id if getattr(encounter, "ward_id", None) else "",
-            spo2=encounter.vitals.spo2 if getattr(encounter, "vitals", None) and encounter.vitals.spo2 else 0.0
+            spo2=encounter.vitals.spo2 if getattr(encounter, "vitals", None) and encounter.vitals.spo2 else 0.0,
+            bed_id=encounter.bed_id if getattr(encounter, "bed_id", None) else ""
         )

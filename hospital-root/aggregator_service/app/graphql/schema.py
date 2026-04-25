@@ -1,6 +1,7 @@
 """Strawberry GraphQL definitions for system schemas."""
 
 import strawberry
+import enum
 from typing import List, Optional
 
 
@@ -38,6 +39,23 @@ class DiagnosticType:
 # Master Data / Reference Types
 # ---------------------------------------------------------------------------
 
+@strawberry.enum
+class BedStatus(enum.Enum):
+    AVAILABLE   = "AVAILABLE"
+    OCCUPIED    = "OCCUPIED"
+    CLEANING    = "CLEANING"
+    MAINTENANCE = "MAINTENANCE"
+
+
+@strawberry.type
+class BedType:
+    id: str
+    code: str
+    ward_id: str
+    status: BedStatus
+    category: str
+
+
 @strawberry.type
 class WardType:
     id: str
@@ -45,6 +63,7 @@ class WardType:
     name: str
     beds_count: int
     is_opd: bool
+    beds: List[BedType] = strawberry.field(default_factory=list)
 
 @strawberry.type
 class DiseaseRefType:
