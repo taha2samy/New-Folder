@@ -36,7 +36,7 @@ jobs:
           
           pack build "$APP_IMAGE" \
             --path ./hospital-root/master_data_service \
-            --builder "paketobuildpacks/builder-ubi9-base" \
+            --builder "paketobuildpacks/ubi-9-builder" \
             --buildpack "paketo-buildpacks/python" \
             --run-image "${{ env.CUSTOM_RUN_IMAGE }}" \
             --env "BP_PYTHON_VERSION=3.11" \
