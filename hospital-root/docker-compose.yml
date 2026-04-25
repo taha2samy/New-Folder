@@ -60,8 +60,7 @@ services:
         condition: service_healthy
 
   patient-service:
-    build:
-      context: ./patient_service
+    image: ghcr.io/taha2samy/hms-patient_service:latest
     env_file:
       - .env
     environment:
@@ -79,8 +78,7 @@ services:
         condition: service_healthy
 
   clinical-service:
-    build:
-      context: ./clinical_service
+    image: ghcr.io/taha2samy/hms-clinical_service:latest
     env_file:
       - .env
     environment:
@@ -101,8 +99,7 @@ services:
         condition: service_healthy
 
   pharmacy-service:
-    build:
-      context: ./pharmacy_service
+    image: ghcr.io/taha2samy/hms-pharmacy_service:latest
     env_file:
       - .env
     environment:
@@ -122,8 +119,7 @@ services:
         condition: service_healthy
 
   laboratory-service:
-    build:
-      context: ./laboratory_service
+    image: ghcr.io/taha2samy/hms-laboratory_service:latest
     env_file:
       - .env
     environment:
@@ -143,8 +139,7 @@ services:
         condition: service_healthy
 
   master-data-service:
-    build:
-      context: ./master_data_service
+    image: ghcr.io/taha2samy/hms-master_data_service:latest
     env_file:
       - .env
     environment:
@@ -164,8 +159,7 @@ services:
         condition: service_healthy
 
   billing-service:
-    build:
-      context: ./billing_service
+    image: ghcr.io/taha2samy/hms-billing_service:latest
     env_file:
       - .env
     environment:
@@ -185,8 +179,7 @@ services:
         condition: service_healthy
 
   aggregator-service:
-    build:
-      context: ./aggregator_service
+    image: ghcr.io/taha2samy/hms-aggregator_service:latest
     env_file:
       - .env
     environment:
