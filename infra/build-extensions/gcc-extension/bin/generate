@@ -4,6 +4,6 @@ set -euo pipefail
 cat <<EOF > build.Dockerfile
 FROM \${build_image}
 USER root
-RUN microdnf install -y gcc gcc-c++ make
+RUN dnf install -y gcc gcc-c++ make
 USER cnb
 EOF
