@@ -1,50 +1,281 @@
-name: Build Python Latest
+# ============================================================================
+# Hospital Management System — Multi-Arch Buildpacks CI with SLSA Attestation
+# ============================================================================
+
+name: Multi-Arch Buildpacks & Attest
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
-    inputs:
-      tag:
-        required: true
-        default: 'latest'
+
+# Cancel redundant in-progress runs to save GitHub Actions minutes
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
 
 jobs:
-  build-and-push:
+  # ==========================================================================
+  # PART 1: Build & Push the Custom Run Image (Multi-Arch)
+  # Uses Docker Buildx + QEMU to create a single manifest list containing 
+  # both AMD64 and ARM64 layers for the custom base image.
+  # ==========================================================================
+  build-run-image:
+    name: 🛠️ Build Run Image (Multi-Arch)
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-    
+      
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
+
+      # GHCR strictly requires lowercase repository owners
+      - name: Set lowercase repository owner
+        run: echo "REPO_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+
+      # QEMU enables running ARM64 instructions on an AMD64 GitHub runner
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      # Buildx is required for multi-platform builds and advanced caching
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build and push the AMD64 and ARM64 images simultaneously.
+      # Buildx automatically bundles them into a single root manifest.
+      - name: Build and Push Multi-Arch Run Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/run-image/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/hms-run-base:noble
+          cache-from: type=gha,scope=run-image
+          cache-to: type=gha,mode=max,scope=run-image
+          provenance: false
+
+
+# ==========================================================================
+  # PART 2: Build Microservices for AMD64 via Pack CLI
+  # Cloud Native Buildpacks (pack) compiles natively based on the host CPU.
+  # This job runs on a standard GitHub runner (AMD64), builds the image, 
+  # and pushes it with an '-amd64' tag suffix.
+  # ==========================================================================
+  build-services-amd64:
+    name: 🖥️ Build AMD64 [${{ matrix.service }}]
+    needs: build-run-image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: true
+      matrix:
+        service:
+          - patient_service
+          - clinical_service
+          - pharmacy_service
+          - laboratory_service
+          - master_data_service
+          - billing_service
+          - aggregator_service
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set lowercase repository owner
+        run: echo "REPO_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Pack CLI
         uses: buildpacks/github-actions/setup-pack@v5.12.0
 
-      - name: Login to GHCR
+      - name: Build and Push App (AMD64)
+        run: |
+          # Use the exact Git SHA for a stable, unique tag across all jobs
+          BASE_TAG=${{ github.sha }}
+          APP_IMAGE=${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/hms-${{ matrix.service }}:${BASE_TAG}-amd64
+          RUN_IMAGE=${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/hms-run-base:noble
+
+          echo "Building ${{ matrix.service }} for AMD64 architecture..."
+          
+          # Pack automatically pulls the matching AMD64 slice from the run-image manifest
+          pack build $APP_IMAGE \
+            --path ./hospital-root/${{ matrix.service }} \
+            --builder paketobuildpacks/builder-noble-base \
+            --buildpack paketo-buildpacks/python \
+            --run-image $RUN_IMAGE \
+            --env BP_PYTHON_VERSION=3.11 \
+            --publish
+
+
+# ==========================================================================
+  # PART 3: Build Microservices for ARM64 via Pack CLI
+  # This job uses GitHub's native ARM64 runners to natively build the ARM 
+  # architecture slice, pushing it to GHCR with an '-arm64' tag suffix.
+  # ==========================================================================
+  build-services-arm64:
+    name: 📱 Build ARM64 [${{ matrix.service }}]
+    needs: build-run-image
+    # Utilizing GitHub's native ARM runner for fast, non-emulated Buildpack execution
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: true
+      matrix:
+        service:
+          - patient_service
+          - clinical_service
+          - pharmacy_service
+          - laboratory_service
+          - master_data_service
+          - billing_service
+          - aggregator_service
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set lowercase repository owner
+        run: echo "REPO_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+
+      - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Push Run Image
-        run: |
-          REPO_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          RUN_IMAGE=ghcr.io/$REPO_LOWER/hms-run-base:noble
-          docker build -t $RUN_IMAGE -f infra/run-image/Dockerfile .
-          docker push $RUN_IMAGE
-          echo "CUSTOM_RUN_IMAGE=$RUN_IMAGE" >> $GITHUB_ENV
+      - name: Setup Pack CLI
+        uses: buildpacks/github-actions/setup-pack@v5.12.0
 
-      - name: Build and Push App
+      - name: Build and Push App (ARM64)
         run: |
-          REPO_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          APP_IMAGE=ghcr.io/$REPO_LOWER/hms-master-data-service:${{ github.event.inputs.tag }}
+          # Use the exact Git SHA for a stable, unique tag across all jobs
+          BASE_TAG=${{ github.sha }}
+          APP_IMAGE=${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/hms-${{ matrix.service }}:${BASE_TAG}-arm64
+          RUN_IMAGE=${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/hms-run-base:noble
+
+          echo "Building ${{ matrix.service }} for ARM64 architecture..."
           
+          # Pack automatically pulls the matching ARM64 slice from the run-image manifest
           pack build $APP_IMAGE \
-            --path ./hospital-root/master_data_service \
-            --builder paketobuildpacks/ubuntu-noble-builder \
+            --path ./hospital-root/${{ matrix.service }} \
+            --builder paketobuildpacks/builder-noble-base \
             --buildpack paketo-buildpacks/python \
-            --run-image ${{ env.CUSTOM_RUN_IMAGE }} \
-            --env BP_PYTHON_VERSION=3.10.16 \
+            --run-image $RUN_IMAGE \
+            --env BP_PYTHON_VERSION=3.11 \
             --publish
+
+# ==========================================================================
+  # PART 4: Multi-Arch Manifest Creation & SLSA Attestation
+  # This job merges the architecture-specific tags created in Parts 2 & 3 
+  # into a single OCI Manifest List (Fat Manifest) and generates a 
+  # cryptographically signed SLSA provenance for the result.
+  # ==========================================================================
+  create-manifest-and-attest:
+    name: 🛡️ Manifest & Attest [${{ matrix.service }}]
+    needs: [build-services-amd64, build-services-arm64]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write      # Required for Sigstore OIDC auth
+      attestations: write  # Required for GitHub Attestations API
+
+    strategy:
+      fail-fast: true
+      matrix:
+        service:
+          - patient_service
+          - clinical_service
+          - pharmacy_service
+          - laboratory_service
+          - master_data_service
+          - billing_service
+          - aggregator_service
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set lowercase repository owner
+        run: echo "REPO_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # -----------------------------------------------------------------------
+      # Create Multi-Arch Manifest
+      # Instead of rebuilding, we point to the existing AMD and ARM images
+      # and tell the registry to treat them as one logical 'latest' image.
+      # -----------------------------------------------------------------------
+      - name: Merge Architecture Tags into Root Manifest
+        id: manifest
+        run: |
+          BASE_TAG=${{ github.sha }}
+          IMAGE_PATH=${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/hms-${{ matrix.service }}
+          
+          AMD_IMAGE=${IMAGE_PATH}:${BASE_TAG}-amd64
+          ARM_IMAGE=${IMAGE_PATH}:${BASE_TAG}-arm64
+          FINAL_IMAGE_SHA=${IMAGE_PATH}:${BASE_TAG}
+          FINAL_IMAGE_LATEST=${IMAGE_PATH}:latest
+
+          echo "Creating Multi-Arch Manifest for ${{ matrix.service }}..."
+          
+          # Combine both architectures into the final tags
+          docker buildx imagetools create -t $FINAL_IMAGE_SHA -t $FINAL_IMAGE_LATEST \
+            $AMD_IMAGE $ARM_IMAGE
+
+          echo "Extracting the final Manifest Index Digest..."
+          # Fetch the digest of the manifest list itself (not individual layers)
+          DIGEST=$(docker buildx imagetools inspect $FINAL_IMAGE_SHA --format '{{json .containerimage.digest}}' | tr -d '"')
+          
+          echo "FINAL_DIGEST=$DIGEST" >> $GITHUB_ENV
+          echo "FINAL_IMAGE_NAME=$IMAGE_PATH" >> $GITHUB_ENV
+          echo "Resolved Digest: $DIGEST"
+
+      # -----------------------------------------------------------------------
+      # SLSA Attestation
+      # This binds the final multi-arch image digest to a signed provenance 
+      # record. This allows users to verify that BOTH architectures were 
+      # built in this specific workflow run.
+      # -----------------------------------------------------------------------
+      - name: 🛡️ Generate SLSA Provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.FINAL_IMAGE_NAME }}
+          subject-digest: ${{ env.FINAL_DIGEST }}
+          push-to-registry: true
