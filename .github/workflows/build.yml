@@ -32,12 +32,12 @@ jobs:
       - name: Build and Push App
         run: |
           REPO_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          APP_IMAGE=ghcr.io/$REPO_LOWER/hms-master-data-service:${{ github.event.inputs.tag }}
+          APP_IMAGE="ghcr.io/${REPO_LOWER}/hms-master-data-service:${{ github.event.inputs.tag }}"
           
-          pack build $APP_IMAGE \
+          pack build "$APP_IMAGE" \
             --path ./hospital-root/master_data_service \
-            --builder paketobuildpacks/builder-ubi8-base \
-            --buildpack paketo-buildpacks/python \
-            --run-image ${{ env.CUSTOM_RUN_IMAGE }} \
-            --env BP_PYTHON_VERSION=3.10 \
+            --builder "paketobuildpacks/builder-ubi8-base" \
+            --buildpack "paketo-buildpacks/python" \
+            --run-image "${{ env.CUSTOM_RUN_IMAGE }}" \
+            --env "BP_PYTHON_VERSION=3.10" \
             --publish
