@@ -1,4 +1,4 @@
-name: Build Python with Predefined Run Image
+name: Build Python with Red Hat UBI
 
 on:
   workflow_dispatch:
@@ -29,10 +29,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Push Custom Run Image
+      - name: Build and Push Red Hat Run Image
         run: |
           REPO_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          RUN_IMAGE=ghcr.io/$REPO_LOWER/hms-run-base:latest
+          RUN_IMAGE=ghcr.io/$REPO_LOWER/hms-run-base:ubi8
           
           docker build -t $RUN_IMAGE -f infra/run-image/Dockerfile .
           docker push $RUN_IMAGE
@@ -45,7 +45,7 @@ jobs:
           
           pack build $APP_IMAGE \
             --path ./hospital-root/master_data_service \
-            --builder paketobuildpacks/builder-noble-base \
+            --builder paketobuildpacks/builder-ubi-base \
             --run-image ${{ env.CUSTOM_RUN_IMAGE }} \
-            --env BP_PYTHON_VERSION=3.10.16 \
+            --env BP_PYTHON_VERSION=3.10 \
             --publish

@@ -1,9 +1,11 @@
-FROM ubuntu:24.04
+FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 
-RUN apt-get update && apt upgrade -y && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/* && \
-    groupadd -g 1001 cnb && \
-    useradd -u 1001 -g cnb -s /bin/bash -m cnb
+RUN microdnf install -y shadow-utils ca-certificates && \
+    microdnf clean all
 
-LABEL io.buildpacks.stack.id="io.buildpacks.stacks.noble"
+RUN groupadd -g 1000 cnb && \
+    useradd -u 1000 -g cnb -s /bin/bash -m cnb
+
+LABEL io.buildpacks.stack.id="io.buildpacks.stacks.ubi8"
 
 USER cnb
