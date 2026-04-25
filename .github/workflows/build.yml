@@ -125,7 +125,7 @@ jobs:
           pack build $APP_IMAGE \
             --path ./hospital-root/${{ matrix.service }} \
             --builder paketobuildpacks/builder-jammy-base \
-            --buildpack gcr.io/paketo-buildpacks/python \
+            --buildpack paketobuildpacks/python \
             --run-image $RUN_IMAGE \
             --env BP_PIPENV_VERSION=3.11 \
             --publish
@@ -189,7 +189,7 @@ jobs:
           pack build $APP_IMAGE \
             --path ./hospital-root/${{ matrix.service }} \
             --builder paketobuildpacks/builder-jammy-base \
-            --buildpack gcr.io/paketo-buildpacks/python \
+            --buildpack paketobuildpacks/python \
             --run-image $RUN_IMAGE \
             --env BP_PIPENV_VERSION=3.11 \
             --publish
