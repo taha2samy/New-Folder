@@ -29,15 +29,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Push Red Hat Run Image
-        run: |
-          REPO_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          RUN_IMAGE=ghcr.io/$REPO_LOWER/hms-run-base:ubi8
-          
-          docker build -t $RUN_IMAGE -f infra/run-image/Dockerfile .
-          docker push $RUN_IMAGE
-          echo "CUSTOM_RUN_IMAGE=$RUN_IMAGE" >> $GITHUB_ENV
-
       - name: Build and Push App
         run: |
           REPO_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
