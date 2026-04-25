@@ -29,16 +29,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+          
       - name: Build and Push App
         run: |
           REPO_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           APP_IMAGE="ghcr.io/${REPO_LOWER}/hms-master-data-service:${{ github.event.inputs.tag }}"
           
+          pack extension package ghcr.io/taha2samy/gcc-extension:latest \
+            --config ./infra/build-extensions/gcc-extension/extension.toml \
+            --publish
+
           pack build "$APP_IMAGE" \
             --path ./hospital-root/master_data_service \
-            --builder "paketobuildpacks/ubi-9-builder" \
-            --buildpack "paketo-buildpacks/python" \
+            --builder "paketobuildpacks/builder-ubi9-base" \
+            --extension "ghcr.io/taha2samy/gcc-extension:latest" \
             --run-image "${{ env.CUSTOM_RUN_IMAGE }}" \
-            --env "BP_PYTHON_VERSION=3.11.14" \
+            --env "BP_PYTHON_VERSION=3.11" \
             --env "BP_LOG_LEVEL=DEBUG" \
             --publish
