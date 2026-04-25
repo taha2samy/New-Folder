@@ -128,7 +128,7 @@ jobs:
             --builder paketobuildpacks/builder-jammy-base \
             --buildpack docker://docker.io/paketobuildpacks/python \
             --run-image $RUN_IMAGE \
-            --env BP_PIPENV_VERSION=3.11 \
+            --env BP_CPYTHON_VERSION=3.11 \
             --publish
 
 
@@ -192,7 +192,7 @@ jobs:
             --builder paketobuildpacks/builder-jammy-base \
             --buildpack docker://docker.io/paketobuildpacks/python \
             --run-image $RUN_IMAGE \
-            --env BP_PIPENV_VERSION=3.11 \
+            --env BP_CPYTHON_VERSION=3.11 \
             --publish
 # ==========================================================================
   # PART 4: Multi-Arch Manifest Creation & SLSA Attestation
