@@ -29,14 +29,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-          
+    
       - name: Build and Push App
         run: |
           REPO_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           APP_IMAGE="ghcr.io/${REPO_LOWER}/hms-master-data-service:${{ github.event.inputs.tag }}"
           
           pack extension package ghcr.io/taha2samy/gcc-extension:latest \
-            --config ./infra/build-extensions/gcc-extension/extension.toml \
+            --config infra/gcc-extension/extension.toml \
             --publish
 
           pack build "$APP_IMAGE" \
