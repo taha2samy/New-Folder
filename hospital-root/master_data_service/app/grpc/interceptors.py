@@ -48,7 +48,6 @@ class AuthInterceptor(grpc.aio.ServerInterceptor):
         # Propagate authenticated claims to the downstream handler.
         enriched_metadata = list(handler_call_details.invocation_metadata)
         enriched_metadata.append(("x-user-id",   str(user_id)))
-        enriched_metadata.append(("x-user-id",   str(user_id)))
         enriched_metadata.append(("x-jwt-token", str(token)))
 
         new_details = grpc.HandlerCallDetails(

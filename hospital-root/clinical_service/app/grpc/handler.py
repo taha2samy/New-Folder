@@ -157,11 +157,10 @@ class ClinicalEncounterServiceHandler(clinical_pb2_grpc.ClinicalEncounterService
                     for dx_id in request.diagnoses_ids:
                         encounter.diagnoses.append(Diagnosis(disease_id=dx_id))
                         
-            self.event_producer.broadcast_encounter_completed(encounter.id, encounter.patient_id)
+            self.event_producer.broadcast_encounter_completed(encounter.id, encounter.patient_id, encounter.bed_id)
             
-            # Automatically trigger bed cleaning if it was an admission
+            # Automatically trigger bed cleaning if it was an admission via dedicated lifecycle event
             if encounter.encounter_type == "ADMISSION" and encounter.bed_id:
-                await self.master_data_client.update_bed_status(encounter.bed_id, master_data_pb2.BedStatus.CLEANING, token)
                 self.event_producer.broadcast_bed_status_changed(encounter.bed_id, "CLEANING", encounter.ward_id)
 
             return self._map_to_proto(encounter)

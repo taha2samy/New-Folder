@@ -29,7 +29,7 @@ async def serve():
 
     producer = EncounterEventProducer()
     master_data_client = MasterDataClient()
-    consumer = PatientEventConsumer(async_session_factory, master_data_client)
+    consumer = PatientEventConsumer(async_session_factory, producer)
     client = PatientServiceClient()
     billing_client = BillingClient(settings.BILLING_SERVICE_ADDR)
 

@@ -30,13 +30,14 @@ class EncounterEventProducer:
         }
         asyncio.create_task(self._send_event("hospital.clinical.encounters", payload))
 
-    def broadcast_encounter_completed(self, encounter_id: str, patient_id: str):
+    def broadcast_encounter_completed(self, encounter_id: str, patient_id: str, bed_id: str = ""):
         import uuid
         payload = {
             "event_id": str(uuid.uuid4()),
             "event_type": "EncounterCompleted",
             "encounter_id": encounter_id,
-            "patient_id": patient_id
+            "patient_id": patient_id,
+            "bed_id": bed_id
         }
         asyncio.create_task(self._send_event("hospital.clinical.encounters", payload))
 

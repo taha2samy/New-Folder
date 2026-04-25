@@ -12,6 +12,8 @@ class BedEventConsumer:
     def __init__(self, db_session_factory):
         self.consumer = AIOKafkaConsumer(
             "hospital.clinical.lifecycle",
+            "hospital.clinical.encounters",
+            "patient_lifecycle",
             bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
             group_id="master_data_service_group"
         )
@@ -21,7 +23,7 @@ class BedEventConsumer:
     async def start(self):
         await self.consumer.start()
         self._running = True
-        logger.info("Master Data Consumer started for Bed Lifecycle events.")
+        logger.info("Master Data Consumer started for Autonomous Bed Management.")
         asyncio.create_task(self._consume_loop())
 
     async def stop(self):
@@ -34,10 +36,44 @@ class BedEventConsumer:
                 if not self._running:
                     break
                 payload = json.loads(msg.value.decode("utf-8"))
-                if payload.get("event_type") == "BedStatusChanged":
+                event_type = payload.get("event_type")
+                
+                if event_type == "BedStatusChanged":
                     await self._handle_bed_status_changed(payload)
+                elif event_type == "EncounterCompleted":
+                    await self._handle_encounter_completed(payload)
+                elif event_type == "PatientDeleted":
+                    # For PatientDeleted, we might need to find which bed they were in.
+                    # But if Clinical emits BedStatusChanged(CLEANING) during deletion, 
+                    # we only need to handle BedStatusChanged.
+                    # As per user: "receives an EncounterCompleted or PatientDeleted event, it independently updates the Bed status"
+                    # This implies it might need to know the bed_id from the event.
+                    await self._handle_patient_deleted(payload)
+                    
         except Exception as e:
             logger.error(f"Master Data Consumer loop error: {e}")
+
+    async def _handle_encounter_completed(self, payload: dict):
+        bed_id = payload.get("bed_id")
+        if not bed_id: return
+        logger.info(f"EncounterCompleted received. Cleaning bed: {bed_id}")
+        await self._set_bed_status(bed_id, master_data_pb2.BedStatus.CLEANING)
+
+    async def _handle_patient_deleted(self, payload: dict):
+        # If PatientDeleted includes bed_id (Enriched Event)
+        bed_id = payload.get("bed_id")
+        if bed_id:
+            logger.info(f"PatientDeleted received. Freeing bed: {bed_id}")
+            await self._set_bed_status(bed_id, master_data_pb2.BedStatus.AVAILABLE)
+
+    async def _set_bed_status(self, bed_id: str, status_enum: int):
+        try:
+            async with self.db_session_factory() as session:
+                repo = MasterDataRepository(session)
+                await repo.update_bed_status(bed_id, status_enum)
+                await session.commit()
+        except Exception as e:
+            logger.error(f"Failed to update bed {bed_id}: {e}")
 
     async def _handle_bed_status_changed(self, payload: dict):
         bed_id = payload.get("bed_id")

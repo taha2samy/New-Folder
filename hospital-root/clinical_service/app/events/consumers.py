@@ -8,19 +8,17 @@ from app.core.config import settings
 from app.domain.repository import ClinicalRepository
 
 from app.core.config import settings
-from app.generated import master_data_pb2
 
 logger = logging.getLogger(__name__)
 
 class PatientEventConsumer:
-    def __init__(self, db_session_factory, master_data_client, event_producer):
+    def __init__(self, db_session_factory, event_producer):
         self.consumer = AIOKafkaConsumer(
             "patient_lifecycle",
             bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
             group_id="clinical_service_group"
         )
         self.db_session_factory = db_session_factory
-        self.master_data_client = master_data_client
         self.event_producer = event_producer
         self._running = False
 
