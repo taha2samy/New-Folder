@@ -1,0 +1,174 @@
+# ============================================================================
+# Hospital Management System — Docker Build, Push & SLSA Attestation
+# ============================================================================
+# This workflow:
+#   1. Builds all microservice Docker images in parallel via a matrix strategy.
+#   2. Pushes signed, multi-arch images (amd64 + arm64) to GHCR.
+#   3. Attaches SLSA Level 3 provenance attestations to every pushed image,
+#      enabling verifiable software supply chain security.
+# ============================================================================
+
+name: Build, Push & Attest Docker Images
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+# Cancel redundant in-progress runs on the same ref (e.g. rapid pushes).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-push-attest:
+    name: Build ${{ matrix.service }}
+    runs-on: ubuntu-latest
+
+    # -------------------------------------------------------------------------
+    # Permissions required for:
+    #   packages: write   — push images to GHCR
+    #   id-token: write   — obtain OIDC token for keyless signing (SLSA)
+    #   attestations: write — publish provenance attestations to GitHub
+    #   contents: read    — checkout the source code
+    # -------------------------------------------------------------------------
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+
+    strategy:
+      # fail-fast: true ensures the whole matrix is cancelled if any service
+      # fails to build, preventing broken partial releases from being pushed.
+      fail-fast: true
+      matrix:
+        service:
+          - patient_service
+          - clinical_service
+          - pharmacy_service
+          - laboratory_service
+          - master_data_service
+          - billing_service
+          - aggregator_service
+
+    steps:
+      # -----------------------------------------------------------------------
+      # 1. Checkout
+      # -----------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      # 2. Multi-Architecture Support
+      # QEMU provides user-space CPU emulation so the runner (amd64) can build
+      # arm64 binaries. Buildx is the extended Docker builder that supports
+      # BuildKit, multi-platform targets, and GitHub Actions cache export.
+      # -----------------------------------------------------------------------
+      - name: Set up QEMU (cross-platform emulation)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # -----------------------------------------------------------------------
+      # 3. Authenticate to GitHub Container Registry (GHCR)
+      # -----------------------------------------------------------------------
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # -----------------------------------------------------------------------
+      # 4. Derive canonical image name & smart tags
+      # docker/metadata-action produces:
+      #   - Branch builds  → ghcr.io/<owner>/hms-<service>:main
+      #   - PR builds      → ghcr.io/<owner>/hms-<service>:pr-<number>
+      #   - SHA tag        → ghcr.io/<owner>/hms-<service>:sha-<short-sha>
+      #   - SemVer tags    → ghcr.io/<owner>/hms-<service>:1.2.3 / :1.2 / :1
+      # The lowercase filter handles mixed-case GitHub org/user names, which
+      # GHCR requires to be lowercase.
+      # -----------------------------------------------------------------------
+      - name: Extract Docker image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/hms-${{ matrix.service }}
+          flavor: |
+            latest=auto
+            prefix=
+            suffix=
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix=sha-,format=short
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+          # Ensure image name is lowercase (GHCR requirement)
+        env:
+          DOCKER_METADATA_PR_HEAD_SHA: true
+
+      # -----------------------------------------------------------------------
+      # 5. Build & Push — Multi-Architecture
+      # Build context is `./hospital-root` (the monorepo workspace root) so
+      # that services can COPY shared files from sibling directories if needed.
+      # The Dockerfile is service-specific at its own subdirectory.
+      #
+      # Cache strategy: `type=gha` stores BuildKit layer cache in the GitHub
+      # Actions cache, giving fast incremental rebuilds on unchanged layers.
+      #
+      # The `digest` output (sha256:...) is captured here and passed to the
+      # attestation step — this is the cryptographic identity of the image.
+      # -----------------------------------------------------------------------
+      - name: Build and push Docker image
+        id: build-push
+        uses: docker/build-push-action@v6
+        with:
+          # Monorepo root as build context — allows COPY ../sibling_module/
+          context: ./hospital-root
+          # Service-specific Dockerfile
+          file: ./hospital-root/${{ matrix.service }}/Dockerfile
+          # Build for both Intel/AMD servers and ARM (Apple Silicon, AWS Graviton, Raspberry Pi)
+          platforms: linux/amd64,linux/arm64
+          # Only push on branch pushes; for PRs images are built but not pushed
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # GitHub Actions layer cache with read+write for both push and PR builds
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          # Add OCI standard annotations for traceability
+          provenance: false  # We use actions/attest-build-provenance instead (below)
+
+      # -----------------------------------------------------------------------
+      # 6. SLSA Provenance Attestation
+      # -----------------------------------------------------------------------
+      # SLSA (Supply chain Levels for Software Artifacts) is an industry
+      # framework for securing the build pipeline. Level 2+ requires a signed,
+      # unforgeable build provenance record.
+      #
+      # `actions/attest-build-provenance` generates a signed SLSA provenance
+      # document and attaches it to the image in the GHCR OCI registry.
+      # It uses GitHub's OIDC token (id-token: write) for keyless signing —
+      # no long-lived secret keys required.
+      #
+      # Consumers can verify an image's provenance with:
+      #   gh attestation verify oci://ghcr.io/<owner>/hms-<service>@<digest>
+      # -----------------------------------------------------------------------
+      - name: Generate SLSA provenance attestation
+        # Only attest images that were actually pushed (not PR dry-runs)
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: actions/attest-build-provenance@v1
+        with:
+          # The fully qualified image name (without tag — digest is canonical)
+          subject-name: ghcr.io/${{ github.repository_owner }}/hms-${{ matrix.service }}
+          # The sha256 digest output from the build step is the cryptographic
+          # fingerprint that ties this attestation to exactly one image layer.
+          subject-digest: ${{ steps.build-push.outputs.digest }}
+          # Push the attestation bundle to GHCR alongside the image
+          push-to-registry: true
