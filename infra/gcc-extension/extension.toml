@@ -1,7 +1,7 @@
 [extension]
 id = "taha2samy/gcc-extension"
-name = "GCC Extension"
 version = "0.0.1"
 
-[[stacks]]
-id = "io.buildpacks.stacks.ubi9"
+[[targets]]
+os = "linux"
+arch = "amd64"
