@@ -124,9 +124,10 @@ jobs:
           # Pack automatically pulls the matching AMD64 slice from the run-image manifest
           pack build $APP_IMAGE \
             --path ./hospital-root/${{ matrix.service }} \
-            --builder paketobuildpacks/ubuntu-noble-builder \
+            --builder paketobuildpacks/builder-jammy-base \
+            --buildpack gcr.io/paketo-buildpacks/python \
             --run-image $RUN_IMAGE \
-            --env BP_PYTHON_VERSION=3.11 \
+            --env BP_PIPENV_VERSION=3.11 \
             --publish
 
 
@@ -187,11 +188,11 @@ jobs:
           # Pack automatically pulls the matching ARM64 slice from the run-image manifest
           pack build $APP_IMAGE \
             --path ./hospital-root/${{ matrix.service }} \
-            --builder paketobuildpacks/ubuntu-noble-builder \
+            --builder paketobuildpacks/builder-jammy-base \
+            --buildpack gcr.io/paketo-buildpacks/python \
             --run-image $RUN_IMAGE \
-            --env BP_PYTHON_VERSION=3.11 \
+            --env BP_PIPENV_VERSION=3.11 \
             --publish
-
 # ==========================================================================
   # PART 4: Multi-Arch Manifest Creation & SLSA Attestation
   # This job merges the architecture-specific tags created in Parts 2 & 3 

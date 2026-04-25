@@ -1,4 +1,4 @@
-FROM ubuntu:24.04 AS builder
+FROM ubuntu:22.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -15,6 +15,6 @@ COPY --from=builder / /
 RUN groupadd -g 1001 cnb && \
     useradd -u 1001 -g cnb -s /bin/bash -m cnb
 
-LABEL io.buildpacks.stack.id="io.buildpacks.stacks.noble"
+LABEL io.buildpacks.stack.id="io.buildpacks.stacks.jammy"
 
 USER cnb
