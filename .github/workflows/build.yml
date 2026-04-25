@@ -1,10 +1,9 @@
-name: Build Python with Red Hat UBI
+name: Build Python Latest
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Image Tag'
         required: true
         default: 'latest'
 
@@ -29,22 +28,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-    
+      - name: Build and Push Run Image
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          RUN_IMAGE=ghcr.io/$REPO_LOWER/hms-run-base:noble
+          docker build -t $RUN_IMAGE -f infra/run-image/Dockerfile .
+          docker push $RUN_IMAGE
+          echo "CUSTOM_RUN_IMAGE=$RUN_IMAGE" >> $GITHUB_ENV
+
       - name: Build and Push App
         run: |
           REPO_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          APP_IMAGE="ghcr.io/${REPO_LOWER}/hms-master-data-service:${{ github.event.inputs.tag }}"
+          APP_IMAGE=ghcr.io/$REPO_LOWER/hms-master-data-service:${{ github.event.inputs.tag }}
           
-          cd infra/gcc-extension
-          pack extension package ghcr.io/taha2samy/gcc-extension:latest \
-            --config ./extension.toml \
+          pack build $APP_IMAGE \
+            --path ./hospital-root/master_data_service \
+            --builder paketobuildpacks/ubuntu-noble-builder \
+            --run-image ${{ env.CUSTOM_RUN_IMAGE }} \
+            --env BP_PYTHON_VERSION=3.10.16 \
             --publish
-
-        #   pack build "$APP_IMAGE" \
-        #     --path ./hospital-root/master_data_service \
-        #     --builder "paketobuildpacks/builder-ubi9-base" \
-        #     --extension "ghcr.io/taha2samy/gcc-extension:latest" \
-        #     --run-image "${{ env.CUSTOM_RUN_IMAGE }}" \
-        #     --env "BP_PYTHON_VERSION=3.11" \
-        #     --env "BP_LOG_LEVEL=DEBUG" \
-        #     --publish
