@@ -81,7 +81,9 @@ class ClinicalEncounterServiceHandler(clinical_pb2_grpc.ClinicalEncounterService
                 repo = ClinicalRepository(session)
                 if await repo.has_active_admission(request.patient_id):
                     await context.abort(grpc.StatusCode.ALREADY_EXISTS, "Patient already admitted.")
-                
+                if await repo.is_bed_occupied(request.ward_id, request.bed_number):
+                    await context.abort(grpc.StatusCode.FAILED_PRECONDITION, f"Bed {request.bed_number} in Ward {request.ward_id} is already occupied.")
+
                 async with session.begin():
                     encounter = Encounter(
                         patient_id=request.patient_id,

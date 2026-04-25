@@ -17,6 +17,22 @@ class ClinicalRepository(ClinicalRepositoryProtocol):
     def __init__(self, session: AsyncSession):
         self.session = session
 
+    async def is_bed_occupied(self, ward_id: str, bed_number: str) -> bool:
+        """
+        Checks if a bed is occupied in a specific ward
+        """
+        stmt = select(Encounter).where(
+            and_(
+                Encounter.ward_id == ward_id,
+                Encounter.bed_number == bed_number,
+                Encounter.status == "ACTIVE",      # The bed is occupied only if the status is active
+                Encounter.is_deleted == False      # and the record is not deleted
+            )
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().first() is not None
+
+
     def _apply_rls(self, stmt):
         """
         Global Filter: Enforce soft delete pattern. Role-based filtering is disabled.
