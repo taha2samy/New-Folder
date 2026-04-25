@@ -35,8 +35,9 @@ jobs:
           REPO_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           APP_IMAGE="ghcr.io/${REPO_LOWER}/hms-master-data-service:${{ github.event.inputs.tag }}"
           
+          cd infra/gcc-extension
           pack extension package ghcr.io/taha2samy/gcc-extension:latest \
-            --config infra/gcc-extension/extension.toml \
+            --config ./extension.toml \
             --publish
 
         #   pack build "$APP_IMAGE" \
