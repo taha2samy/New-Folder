@@ -18,13 +18,16 @@ class MasterDataClient:
         self.channel = grpc.aio.insecure_channel(settings.MASTER_DATA_SERVICE_ADDR)
         self.stub = master_data_pb2_grpc.MasterDataServiceStub(self.channel)
 
-    async def get_wards(self, jwt_token: str) -> List[Dict[str, Any]]:
+    async def get_wards(self, jwt_token: str, trace_id: str = "unknown") -> List[Dict[str, Any]]:
         """Retrieves wards."""
         max_retries = 3
         base_delay = 1.0
         
         request = master_data_pb2.EmptyRequest()
-        metadata = (("authorization", f"Bearer {jwt_token}"),)
+        metadata = (
+            ("authorization", f"Bearer {jwt_token}"),
+            ("x-trace-id", trace_id)
+        )
 
         for attempt in range(max_retries):
             try:
@@ -43,13 +46,16 @@ class MasterDataClient:
                 
         return []
 
-    async def get_diseases(self, jwt_token: str) -> List[Dict[str, Any]]:
+    async def get_diseases(self, jwt_token: str, trace_id: str = "unknown") -> List[Dict[str, Any]]:
         """Retrieves diseases."""
         max_retries = 3
         base_delay = 1.0
         
         request = master_data_pb2.DiseaseQuery(search_term="")
-        metadata = (("authorization", f"Bearer {jwt_token}"),)
+        metadata = (
+            ("authorization", f"Bearer {jwt_token}"),
+            ("x-trace-id", trace_id)
+        )
 
         for attempt in range(max_retries):
             try:
@@ -67,10 +73,13 @@ class MasterDataClient:
                 
         return []
 
-    async def get_beds_by_ward(self, ward_id: str, jwt_token: str) -> List[Dict[str, Any]]:
+    async def get_beds_by_ward(self, ward_id: str, jwt_token: str, trace_id: str = "unknown") -> List[Dict[str, Any]]:
         """Retrieves beds for a ward."""
         request = master_data_pb2.WardQuery(ward_id=ward_id)
-        metadata = (("authorization", f"Bearer {jwt_token}"),)
+        metadata = (
+            ("authorization", f"Bearer {jwt_token}"),
+            ("x-trace-id", trace_id)
+        )
         try:
             response = await self.stub.GetBedsByWard(request, metadata=metadata)
             return [
@@ -85,10 +94,13 @@ class MasterDataClient:
             logger.error(f"Error calling MasterDataService GetBedsByWard: {e}")
             return []
 
-    async def update_bed_status(self, bed_id: str, status: int, jwt_token: str) -> bool:
+    async def update_bed_status(self, bed_id: str, status: int, jwt_token: str, trace_id: str = "unknown") -> bool:
         """Updates bed status (idempotent)."""
         request = master_data_pb2.UpdateBedStatusRequest(bed_id=bed_id, status=status)
-        metadata = (("authorization", f"Bearer {jwt_token}"),)
+        metadata = (
+            ("authorization", f"Bearer {jwt_token}"),
+            ("x-trace-id", trace_id)
+        )
         try:
             await self.stub.UpdateBedStatus(request, metadata=metadata)
             return True

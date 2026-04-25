@@ -15,11 +15,14 @@ class MasterDataClient:
         self.channel = grpc.aio.insecure_channel(settings.MASTER_DATA_SERVICE_ADDR)
         self.stub = master_data_pb2_grpc.MasterDataServiceStub(self.channel)
 
-    async def get_bed(self, bed_id: str) -> Optional[Dict[str, Any]]:
+    async def get_bed(self, bed_id: str, trace_id: str = "unknown") -> Optional[Dict[str, Any]]:
         """Retrieves bed details for category mapping, using internal auth."""
         request = master_data_pb2.BedQuery(bed_id=bed_id)
         token = generate_internal_token()
-        metadata = (("authorization", f"Bearer {token}"),)
+        metadata = (
+            ("authorization", f"Bearer {token}"),
+            ("x-trace-id", trace_id)
+        )
         try:
             response = await self.stub.GetBed(request, metadata=metadata)
             return {

@@ -7,16 +7,20 @@ from aiokafka import AIOKafkaConsumer
 from app.core.config import settings
 from app.domain.repository import ClinicalRepository
 
+from app.core.security import generate_internal_token
+from app.generated import master_data_pb2
+
 logger = logging.getLogger(__name__)
 
 class PatientEventConsumer:
-    def __init__(self, db_session_factory):
+    def __init__(self, db_session_factory, master_data_client):
         self.consumer = AIOKafkaConsumer(
             "patient_lifecycle",
             bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
             group_id="clinical_service_group"
         )
         self.db_session_factory = db_session_factory
+        self.master_data_client = master_data_client
         self._running = False
 
     async def start(self):
@@ -43,11 +47,28 @@ class PatientEventConsumer:
             logger.error(f"Consumer loop error: {e}")
 
     async def _handle_patient_deleted(self, patient_id: str):
-        logger.warning(f"Suspending active encounters for deleted patient {patient_id}")
+        logger.warning(f"Patient {patient_id} deleted. Cleaning up clinical resources.")
         try:
             async with self.db_session_factory() as session:
                 repo = ClinicalRepository(session)
+                
+                # 1. Find if patient has an active admission
+                active_adm = await repo.get_active_admission(patient_id)
+                
+                # 2. Suspend all active encounters
                 await repo.suspend_patient_encounters(patient_id)
                 await session.commit()
+                
+                # 3. If they had a bed, free it in MasterDataService
+                if active_adm and active_adm.bed_id:
+                    logger.info(f"Freeing bed {active_adm.bed_id} for deleted patient {patient_id}")
+                    token = generate_internal_token()
+                    # Moving bed to CLEANING as per ERP standard housekeeping flow
+                    await self.master_data_client.update_bed_status(
+                        active_adm.bed_id, 
+                        master_data_pb2.BedStatus.CLEANING, 
+                        token
+                    )
+
         except Exception as e:
             logger.error(f"Failed to process PatientDeleted for {patient_id}: {e}")

@@ -34,7 +34,7 @@ service MasterDataService {
   // Returns a single bed by its ID.
   rpc GetBed           (BedQuery)             returns (BedMessage);
   // Transitions a bed from CLEANING back to AVAILABLE.
-  rpc MarkBedAvailable  (BedQuery)             returns (BedMessage);
+  rpc MarkBedAsReady  (BedQuery)             returns (BedMessage);
   // Returns all registered beds in the system.
   rpc GetAllBeds       (EmptyRequest)         returns (BedsResponse);
 }

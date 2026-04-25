@@ -105,10 +105,7 @@ class MasterDataRepository:
         admin_id: str,
     ) -> Ward:
         """
-        Create a new Ward when ward_id is None/empty, or update the existing one.
-
-        Records admin_id for compliance auditing and raises EntityNotFoundError
-        when an update targets a non-existent record.
+        Create or update a Ward and reconcile its Bed records.
         """
         if ward_id:
             ward = await self.get_ward_by_id(ward_id)
@@ -116,7 +113,8 @@ class MasterDataRepository:
                 raise EntityNotFoundError(f"Ward '{ward_id}' not found.")
             ward.code       = code
             ward.name       = name
-            ward.beds_count = beds_count
+            # Note: beds_count as a static field is legacy; we reconcile the Bed table records instead.
+            # But we keep it in sync for documentation/Legacy UI.
             ward.is_opd     = is_opd
             ward.created_by = admin_id
             ward.updated_at = datetime.utcnow()
@@ -129,7 +127,30 @@ class MasterDataRepository:
                 created_by=admin_id,
             )
             self._session.add(ward)
+            await self._session.flush() # Get ward.id
 
+        # Reconcile Beds
+        current_beds = await self.get_beds_by_ward(ward.id)
+        current_count = len(current_beds)
+        
+        if beds_count > current_count:
+            # Add missing beds
+            for i in range(current_count + 1, beds_count + 1):
+                new_bed = Bed(
+                    ward_id=ward.id,
+                    code=f"{ward.code}-B{i:02d}",
+                    status=BedStatusEnum.AVAILABLE,
+                    category="GENERAL"
+                )
+                self._session.add(new_bed)
+        elif beds_count < current_count:
+            # Soft-delete excess beds (from the end)
+            excess = current_beds[beds_count:]
+            for bed in excess:
+                bed.is_deleted = True
+        
+        # Finally, the ward's beds_count is updated to the target number
+        ward.beds_count = beds_count
         await self._session.flush()
         return ward
 
@@ -160,8 +181,13 @@ class MasterDataRepository:
         return result.scalar_one_or_none()
 
     async def update_bed_status(self, bed_id: str, status: BedStatusEnum) -> Bed:
-        """Update bed status. Raises EntityNotFoundError if missing."""
-        bed = await self.get_bed_by_id(bed_id)
+        """Update bed status with row-level locking to prevent race conditions."""
+        result = await self._session.execute(
+            select(Bed)
+            .where((Bed.id == bed_id) & (Bed.is_deleted == False))
+            .with_for_update() # Row-level lock
+        )
+        bed = result.scalar_one_or_none()
         if not bed:
             raise EntityNotFoundError(f"Bed {bed_id} not found.")
         

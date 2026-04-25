@@ -253,7 +253,7 @@ class BillingEventConsumer:
                 
                 if not bed_id: continue
 
-                bed_info = await self._master_data_client.get_bed(bed_id)
+                bed_info = await self._master_data_client.get_bed(bed_id, trace_id="midnight-cron")
                 if bed_info:
                     category = bed_info.get("category", "GENERAL")
                     bed_price = await repo.get_price("BED", category) or Decimal("100.00")

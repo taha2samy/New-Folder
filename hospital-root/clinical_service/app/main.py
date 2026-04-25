@@ -27,9 +27,9 @@ async def serve():
     async_session_factory = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
     producer = EncounterEventProducer()
-    consumer = PatientEventConsumer(async_session_factory)
-    client = PatientServiceClient()
     master_data_client = MasterDataClient()
+    consumer = PatientEventConsumer(async_session_factory, master_data_client)
+    client = PatientServiceClient()
 
     try:
         await producer.start()

@@ -1,6 +1,6 @@
 """Repository layer for Clinical Encounters."""
 
-from typing import List, Protocol
+from typing import List, Protocol, Optional
 from sqlalchemy import select, and_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -60,6 +60,19 @@ class ClinicalRepository(ClinicalRepositoryProtocol):
         )
         result = await self.session.execute(stmt)
         return result.scalars().first() is not None
+
+    async def get_active_admission(self, patient_id: str) -> Optional[Encounter]:
+        """Return the active admission for a patient if it exists."""
+        stmt = select(Encounter).where(
+            and_(
+                Encounter.patient_id == patient_id,
+                Encounter.encounter_type == "ADMISSION",
+                Encounter.status == "ACTIVE",
+                Encounter.is_deleted == False
+            )
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().first()
 
     async def get_active_admissions(self) -> List[Encounter]:
         """Return all active admissions."""

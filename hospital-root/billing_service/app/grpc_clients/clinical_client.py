@@ -6,6 +6,8 @@ from typing import List, Dict, Any
 from app.generated import clinical_pb2, clinical_pb2_grpc
 from app.core.config import settings
 
+from app.core.security import generate_internal_token
+
 logger = logging.getLogger(__name__)
 
 class ClinicalClient:
@@ -13,12 +15,17 @@ class ClinicalClient:
         self.channel = grpc.aio.insecure_channel(settings.CLINICAL_SERVICE_ADDR)
         self.stub = clinical_pb2_grpc.ClinicalEncounterServiceStub(self.channel)
 
-    async def get_active_admissions(self) -> List[Dict[str, Any]]:
+    async def get_active_admissions(self, trace_id: str = "unknown") -> List[Dict[str, Any]]:
         """Retrieves all active admissions for recurring billing."""
         request = clinical_pb2.EmptyRequest()
+        token = generate_internal_token()
+        metadata = (
+            ("authorization", f"Bearer {token}"),
+            ("x-trace-id", trace_id)
+        )
         admissions = []
         try:
-            async for response in self.stub.GetActiveAdmissions(request):
+            async for response in self.stub.GetActiveAdmissions(request, metadata=metadata):
                 admissions.append({
                     "encounter_id": response.encounter_id,
                     "patient_id": response.patient_id,

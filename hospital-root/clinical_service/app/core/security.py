@@ -15,4 +15,13 @@ def decode_jwt_token(token: str) -> Optional[Dict[str, Any]]:
     except jwt.PyJWTError:
         return None
 
+def generate_internal_token() -> str:
+    """Generates a short-lived JWT for inter-service communication."""
+    payload = {
+        "user_id": "clinical_service_internal",
+        "role": "internal_service",
+        "exp": jwt.datetime.utcnow() + jwt.timedelta(minutes=5)
+    }
+    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+
 

@@ -119,11 +119,30 @@ class MasterDataClient:
             logger.error("MasterDataService.GetBedsByWard failed: %s", e.details())
             return []
 
-    async def mark_bed_available(self, bed_id: str, user_id: str) -> Optional[Dict[str, Any]]:
+    async def get_all_beds(self, user_id: str) -> List[Dict[str, Any]]:
+        """Fetch all non-deleted beds in the hospital (Optimized for Bulk)."""
+        try:
+            req = master_data_pb2.EmptyRequest()
+            res = await self.stub.GetAllBeds(req, metadata=self._get_metadata(user_id))
+            return [
+                {
+                    "id": b.bed_id,
+                    "code": b.bed_code,
+                    "ward_id": b.ward_id,
+                    "status": b.status,
+                    "category": b.category,
+                }
+                for b in res.beds
+            ]
+        except grpc.RpcError as e:
+            logger.error("MasterDataService.GetAllBeds failed: %s", e.details())
+            return []
+
+    async def mark_bed_as_ready(self, bed_id: str, user_id: str) -> Optional[Dict[str, Any]]:
         """Transitions a bed from CLEANING to AVAILABLE via gRPC."""
         try:
             req = master_data_pb2.BedQuery(bed_id=bed_id)
-            res = await self.stub.MarkBedAvailable(req, metadata=self._get_metadata(user_id))
+            res = await self.stub.MarkBedAsReady(req, metadata=self._get_metadata(user_id))
             return {
                 "id": res.bed_id,
                 "code": res.bed_code,
@@ -132,5 +151,5 @@ class MasterDataClient:
                 "category": res.category
             }
         except grpc.RpcError as e:
-            logger.error("MasterDataService.MarkBedAvailable failed: %s", e.details())
+            logger.error("MasterDataService.MarkBedAsReady failed: %s", e.details())
             return None

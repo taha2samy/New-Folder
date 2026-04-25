@@ -208,26 +208,35 @@ class Query:
         diseases_fut = master_data_client.get_diseases(user_id)
         exams_fut = master_data_client.get_exam_types(user_id)
         ops_fut = master_data_client.get_operation_types(user_id)
+        beds_fut = master_data_client.get_all_beds(user_id) # Batch fetch all beds
         
-        wards_raw, diseases_raw, exams_raw, ops_raw = await asyncio.gather(
-            wards_fut, diseases_fut, exams_fut, ops_fut
+        wards_raw, diseases_raw, exams_raw, ops_raw, all_beds_raw = await asyncio.gather(
+            wards_fut, diseases_fut, exams_fut, ops_fut, beds_fut
         )
-        
-        wards_list = []
-        for w in wards_raw:
-            beds_raw = await master_data_client.get_beds(user_id, w["id"])
-            beds = [
+
+        # Map beds to wards in-memory (O(N))
+        beds_by_ward = {}
+        for b in all_beds_raw:
+            w_id = b["ward_id"]
+            if w_id not in beds_by_ward:
+                beds_by_ward[w_id] = []
+            beds_by_ward[w_id].append(
                 BedType(
                     id=b["id"],
                     code=b["code"],
                     ward_id=b["ward_id"],
                     status=_BED_STATUS_MAP.get(b["status"], BedStatus.AVAILABLE),
                     category=b["category"]
-                ) for b in beds_raw
-            ]
+                )
+            )
+        
+        wards_list = []
+        for w in wards_raw:
+            ward_id = w["id"]
+            beds = beds_by_ward.get(ward_id, [])
             
             wards_list.append(WardType(
-                id=w["id"],
+                id=ward_id,
                 code=w["code"],
                 name=w["name"],
                 beds_count=w["beds_count"],
@@ -263,8 +272,8 @@ class Mutation:
         user_id = context.user_id
         
         master_client: MasterDataClient = client_refs["master_data"]
-        # RPC: MarkBedAvailable(BedQuery) returns (BedMessage)
-        result = await master_client.mark_bed_available(str(bed_id), user_id)
+        # RPC: MarkBedAsReady(BedQuery) returns (BedMessage)
+        result = await master_client.mark_bed_as_ready(str(bed_id), user_id)
         
         if result:
             bed_dto = BedType(
