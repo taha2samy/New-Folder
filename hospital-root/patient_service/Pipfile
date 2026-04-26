@@ -5,6 +5,9 @@ name = "pypi"
 
 [packages]
 grpcio = "*"
+protobuf = "*"
+grpcio-tools = "*"
+
 pyjwt = "*"
 asyncpg = "*"
 aiokafka = "*"

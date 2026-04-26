@@ -7,12 +7,13 @@ name = "pypi"
 fastapi = "*"
 strawberry-graphql = "*"
 pydantic-settings = "*"
-grpcio = "*"
 pyjwt="*"
 uvicorn = "*"
+grpcio = "*"
+protobuf = "*"
+grpcio-tools = "*"
 
 [dev-packages]
-grpcio-tools = "*"
 
 [requires]
 python_version = "3.11"

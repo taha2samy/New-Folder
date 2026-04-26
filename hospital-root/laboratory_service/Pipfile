@@ -5,7 +5,6 @@ name = "pypi"
 
 [packages]
 grpcio = "*"
-grpcio-tools = "*"
 sqlalchemy = {extras = ["asyncio"], version = "*"}
 asyncpg = "*"
 pydantic-settings = "*"
@@ -13,6 +12,8 @@ pydantic = "*"
 pyjwt = "*"
 confluent-kafka = "*"
 alembic = "*"
+protobuf = "*"
+grpcio-tools = "*"
 
 [dev-packages]
 pytest = "*"

@@ -6,6 +6,8 @@ name = "pypi"
 [packages]
 grpcio = "*"
 grpcio-tools = "*"
+protobuf = "*"
+
 sqlalchemy = {extras = ["asyncio"], version = "*"}
 asyncpg = "*"
 pydantic-settings = "*"

@@ -12,11 +12,11 @@ pydantic-settings = "*"
 pyjwt = "*"
 confluent-kafka = "*"
 alembic = "*"
+protobuf = "*"
 
 [dev-packages]
 pytest = "*"
 pytest-asyncio = "*"
-grpcio-tools = "*"
 
 [requires]
 python_version = "3.11"

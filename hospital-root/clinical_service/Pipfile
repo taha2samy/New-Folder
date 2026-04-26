@@ -12,9 +12,10 @@ aiokafka = "*"
 pydantic = "*"
 pydantic-settings = "*"
 alembic="*"  
+protobuf = "*"
+grpcio-tools = "*"
 
 [dev-packages]
-grpcio-tools = "*"
 
 [requires]
 python_version = "3.11"
