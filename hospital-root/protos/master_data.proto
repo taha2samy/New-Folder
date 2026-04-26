@@ -25,6 +25,10 @@ service MasterDataService {
   rpc UpsertWard        (UpsertWardRequest)    returns (WardMessage);
   // Creates or updates a Disease record.
   rpc UpsertDisease     (UpsertDiseaseRequest) returns (DiseaseMessage);
+  // Creates or updates an ExamType record.
+  rpc UpsertExamType    (UpsertExamTypeRequest) returns (ExamTypeMessage);
+  // Creates or updates an OperationType record.
+  rpc UpsertOperationType (UpsertOperationTypeRequest) returns (OperationTypeMessage);
 
   // --- Bed Management RPCs ---
   // Returns beds within a specific ward.
@@ -146,6 +150,13 @@ message ExamTypesResponse {
   repeated ExamTypeMessage exam_types = 1;
 }
 
+message UpsertExamTypeRequest {
+  string        exam_type_id   = 1; // Empty for creation
+  string        code           = 2;
+  string        description    = 3;
+  ProcedureType procedure_type = 4;
+}
+
 // ---------------------------------------------------------------------------
 // OperationType Messages
 // ---------------------------------------------------------------------------
@@ -159,6 +170,13 @@ message OperationTypeMessage {
 
 message OperationTypesResponse {
   repeated OperationTypeMessage operation_types = 1;
+}
+
+message UpsertOperationTypeRequest {
+  string operation_type_id = 1; // Empty for creation
+  string code              = 2;
+  string description       = 3;
+  bool   is_major          = 4;
 }
 
 // ---------------------------------------------------------------------------

@@ -287,3 +287,53 @@ class Mutation:
             return MarkBedResponse(success=True, bed=bed_dto)
         
         return MarkBedResponse(success=False)
+
+    @strawberry.mutation
+    async def upsert_exam_type(
+        self,
+        info: Info,
+        code: str,
+        description: str,
+        procedure_type: int,
+        exam_type_id: Optional[str] = None
+    ) -> Optional[ExamTypeRef]:
+        """Create or update an examination type via master_data_service."""
+        context = info.context
+        metadata = context.metadata
+        
+        master_client: MasterDataClient = client_refs["master_data"]
+        result = await master_client.upsert_exam_type(
+            code=code,
+            description=description,
+            procedure_type=procedure_type,
+            metadata=metadata,
+            exam_type_id=exam_type_id
+        )
+        if result:
+            return ExamTypeRef(**result)
+        return None
+
+    @strawberry.mutation
+    async def upsert_operation_type(
+        self,
+        info: Info,
+        code: str,
+        description: str,
+        is_major: bool,
+        operation_type_id: Optional[str] = None
+    ) -> Optional[OperationTypeRef]:
+        """Create or update an operation type via master_data_service."""
+        context = info.context
+        metadata = context.metadata
+        
+        master_client: MasterDataClient = client_refs["master_data"]
+        result = await master_client.upsert_operation_type(
+            code=code,
+            description=description,
+            is_major=is_major,
+            metadata=metadata,
+            operation_type_id=operation_type_id
+        )
+        if result:
+            return OperationTypeRef(**result)
+        return None

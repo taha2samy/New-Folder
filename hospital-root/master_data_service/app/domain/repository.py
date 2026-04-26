@@ -308,3 +308,71 @@ class MasterDataRepository:
             select(Supplier).order_by(Supplier.name)
         )
         return list(result.scalars().all())
+
+    # ------------------------------------------------------------------
+    # Catalogue Write operations
+    # ------------------------------------------------------------------
+
+    async def get_exam_type_by_id(self, et_id: str) -> Optional[ExamType]:
+        """Return a single ExamType by primary key."""
+        result = await self._session.execute(select(ExamType).where(ExamType.id == et_id))
+        return result.scalar_one_or_none()
+
+    async def get_operation_type_by_id(self, ot_id: str) -> Optional[OperationType]:
+        """Return a single OperationType by primary key."""
+        result = await self._session.execute(select(OperationType).where(OperationType.id == ot_id))
+        return result.scalar_one_or_none()
+
+    async def upsert_exam_type(
+        self,
+        *,
+        exam_type_id: Optional[str],
+        code: str,
+        description: str,
+        procedure_type: ProcedureTypeEnum,
+    ) -> ExamType:
+        """Create or update an ExamType record."""
+        if exam_type_id:
+            exam_type = await self.get_exam_type_by_id(exam_type_id)
+            if exam_type is None:
+                raise EntityNotFoundError(f"ExamType '{exam_type_id}' not found.")
+            exam_type.code           = code
+            exam_type.description    = description
+            exam_type.procedure_type = procedure_type
+        else:
+            exam_type = ExamType(
+                code=code,
+                description=description,
+                procedure_type=procedure_type,
+            )
+            self._session.add(exam_type)
+
+        await self._session.flush()
+        return exam_type
+
+    async def upsert_operation_type(
+        self,
+        *,
+        operation_type_id: Optional[str],
+        code: str,
+        description: str,
+        is_major: bool,
+    ) -> OperationType:
+        """Create or update an OperationType record."""
+        if operation_type_id:
+            op_type = await self.get_operation_type_by_id(operation_type_id)
+            if op_type is None:
+                raise EntityNotFoundError(f"OperationType '{operation_type_id}' not found.")
+            op_type.code        = code
+            op_type.description = description
+            op_type.is_major    = is_major
+        else:
+            op_type = OperationType(
+                code=code,
+                description=description,
+                is_major=is_major,
+            )
+            self._session.add(op_type)
+
+        await self._session.flush()
+        return op_type

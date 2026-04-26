@@ -147,3 +147,57 @@ class MasterDataClient:
         except grpc.RpcError as e:
             logger.error("MasterDataService.MarkBedAsReady failed: %s", e.details())
             return None
+
+    async def upsert_exam_type(
+        self,
+        code: str,
+        description: str,
+        procedure_type: int,
+        metadata: tuple,
+        exam_type_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Create or update an ExamType."""
+        try:
+            req = master_data_pb2.UpsertExamTypeRequest(
+                exam_type_id=exam_type_id or "",
+                code=code,
+                description=description,
+                procedure_type=procedure_type,
+            )
+            res = await self.stub.UpsertExamType(req, metadata=metadata)
+            return {
+                "id": res.exam_type_id,
+                "code": res.code,
+                "description": res.description,
+                "procedure_type": res.procedure_type,
+            }
+        except grpc.RpcError as e:
+            logger.error("MasterDataService.UpsertExamType failed: %s", e.details())
+            return None
+
+    async def upsert_operation_type(
+        self,
+        code: str,
+        description: str,
+        is_major: bool,
+        metadata: tuple,
+        operation_type_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Create or update an OperationType."""
+        try:
+            req = master_data_pb2.UpsertOperationTypeRequest(
+                operation_type_id=operation_type_id or "",
+                code=code,
+                description=description,
+                is_major=is_major,
+            )
+            res = await self.stub.UpsertOperationType(req, metadata=metadata)
+            return {
+                "id": res.operation_type_id,
+                "code": res.code,
+                "description": res.description,
+                "is_major": res.is_major,
+            }
+        except grpc.RpcError as e:
+            logger.error("MasterDataService.UpsertOperationType failed: %s", e.details())
+            return None

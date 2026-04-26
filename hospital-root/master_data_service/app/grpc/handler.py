@@ -54,6 +54,8 @@ _PROCEDURE_TYPE_MAP = {
     ProcedureTypeEnum.MANUAL_TEXT:      master_data_pb2.ProcedureType.MANUAL_TEXT,
 }
 
+_PROTO_PROCEDURE_TYPE_MAP = {v: k for k, v in _PROCEDURE_TYPE_MAP.items()}
+
 _BED_STATUS_MAP = {
     BedStatusEnum.AVAILABLE:   master_data_pb2.BedStatus.AVAILABLE,
     BedStatusEnum.OCCUPIED:    master_data_pb2.BedStatus.OCCUPIED,
@@ -481,3 +483,83 @@ class MasterDataServiceHandler(master_data_pb2_grpc.MasterDataServiceServicer):
         except Exception as exc:
             logger.exception("UpsertDisease error: %s", exc)
             await context.abort(grpc.StatusCode.INTERNAL, "Error upserting disease.")
+
+    async def UpsertExamType(self, request, context):
+        """Create or update an ExamType and invalidate cache."""
+        user_id = self._extract_caller(context)
+        is_create = not request.exam_type_id
+
+        proc_type = _PROTO_PROCEDURE_TYPE_MAP.get(request.procedure_type)
+        if proc_type is None:
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid procedure type.")
+
+        try:
+            async with self._db_session_factory() as session:
+                async with session.begin():
+                    repo = MasterDataRepository(session)
+                    et = await repo.upsert_exam_type(
+                        exam_type_id=request.exam_type_id or None,
+                        code=request.code,
+                        description=request.description,
+                        procedure_type=proc_type,
+                    )
+
+            async with _cache_lock:
+                _cache_invalidate("exam_types")
+
+            self._event_producer.broadcast_reference_data_changed(
+                entity_type="EXAM_TYPE",
+                action="CREATE" if is_create else "UPDATE",
+                admin_id=user_id,
+                entity_id=et.id,
+            )
+
+            return master_data_pb2.ExamTypeMessage(
+                exam_type_id=et.id,
+                code=et.code,
+                description=et.description,
+                procedure_type=_PROCEDURE_TYPE_MAP.get(et.procedure_type),
+            )
+        except EntityNotFoundError as exc:
+            await context.abort(grpc.StatusCode.NOT_FOUND, str(exc))
+        except Exception as exc:
+            logger.exception("UpsertExamType error: %s", exc)
+            await context.abort(grpc.StatusCode.INTERNAL, "Error upserting exam type.")
+
+    async def UpsertOperationType(self, request, context):
+        """Create or update an OperationType and invalidate cache."""
+        user_id = self._extract_caller(context)
+        is_create = not request.operation_type_id
+
+        try:
+            async with self._db_session_factory() as session:
+                async with session.begin():
+                    repo = MasterDataRepository(session)
+                    ot = await repo.upsert_operation_type(
+                        operation_type_id=request.operation_type_id or None,
+                        code=request.code,
+                        description=request.description,
+                        is_major=request.is_major,
+                    )
+
+            async with _cache_lock:
+                _cache_invalidate("operation_types")
+
+            self._event_producer.broadcast_reference_data_changed(
+                entity_type="OPERATION_TYPE",
+                action="CREATE" if is_create else "UPDATE",
+                admin_id=user_id,
+                entity_id=ot.id,
+            )
+
+            return master_data_pb2.OperationTypeMessage(
+                operation_type_id=ot.id,
+                code=ot.code,
+                description=ot.description,
+                is_major=ot.is_major,
+            )
+        except EntityNotFoundError as exc:
+            await context.abort(grpc.StatusCode.NOT_FOUND, str(exc))
+        except Exception as exc:
+            logger.exception("UpsertOperationType error: %s", exc)
+            await context.abort(grpc.StatusCode.INTERNAL, "Error upserting operation type.")
