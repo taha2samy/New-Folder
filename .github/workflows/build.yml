@@ -144,7 +144,51 @@ jobs:
 
 
 
+  build-frontend:
+    name: 🖥️ Build Frontend
+    needs: build-run-image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set lowercase repository owner
+        run: echo "REPO_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Taskfile
+        uses: ./.github/actions/setup-taskfile
+      - name: install dependencies
+        run: task all:install
+      - name: generate grpc
+        run: task all:generate
+
+      - name: Build and Push Frontend
+        run: |
+          cd ./hospital-root/frontend && ln -s app/main.py main.py && cd -
+          # Use the exact Git SHA for a stable, unique tag across all jobs
+          BASE_TAG=${{ github.sha }}
+          APP_IMAGE=${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/hms-frontend:${BASE_TAG}
+          RUN_IMAGE=${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/hms-run-base:noble
+
+          echo "Building frontend for AMD64 architecture..."
+          
+          # Pack automatically pulls the matching AMD64 slice from the run-image manifest
+          pack build $APP_IMAGE \
+            --path ./hospital-root/frontend \
+            --builder paketobuildpacks/builder-jammy-base \
+            --run-image $RUN_IMAGE \
+            --publish
 
   build-services-arm64:
     name: 📱 Build ARM64 [${{ matrix.service }}]
