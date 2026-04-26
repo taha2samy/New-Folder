@@ -186,6 +186,7 @@ jobs:
           # Pack automatically pulls the matching AMD64 slice from the run-image manifest
           pack build "$APP_IMAGE" \
             --path ./hosptial \
+            --builder paketobuildpacks/ubi-10-builder \
             --buildpack docker.io/paketobuildpacks/nodejs \
             --env BP_NODE_RUN_SCRIPTS=build \
             --run-image "$RUN_IMAGE" \
