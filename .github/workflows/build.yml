@@ -184,15 +184,16 @@ jobs:
           echo "Building frontend for AMD64 architecture..."
           
           # Pack automatically pulls the matching AMD64 slice from the run-image manifest
-          pack build $APP_IMAGE \
+          pack build "$APP_IMAGE" \
             --path ./hosptial \
             --buildpack docker.io/paketobuildpacks/nodejs \
             --buildpack docker.io/paketobuildpacks/procfile \
             --builder paketobuildpacks/builder-jammy-base \
             --env BP_NODE_RUN_SCRIPTS=build \
-            --env BP_NODE_VERSION=24 \  
-            --run-image $RUN_IMAGE \
+            --env BP_NODE_VERSION=24 \
+            --run-image "$RUN_IMAGE" \
             --publish
+
 
   build-services-arm64:
     name: 📱 Build ARM64 [${{ matrix.service }}]
