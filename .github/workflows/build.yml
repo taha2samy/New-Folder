@@ -176,6 +176,7 @@ jobs:
 
       - name: Build and Push App (ARM64)
         run: |
+          docker pull --platform linux/arm64 paketobuildpacks/builder-jammy-base:latest
           cd ./hospital-root/${{ matrix.service }} && ln -s app/main.py main.py && cd -
           echo "==========================="
           # Use the exact Git SHA for a stable, unique tag across all jobs
