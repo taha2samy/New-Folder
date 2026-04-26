@@ -373,28 +373,29 @@ class Mutation:
         billing_client: BillingClient = client_refs["billing"]
         
         # Fire master data upsert
-        cat_task = asyncio.create_task(master_client.upsert_bed_category(
+        cat_res = await master_client.upsert_bed_category(
             name=name,
             description=description,
             metadata=metadata,
             id=id
-        ))
+        )
         
-        # Concurrently fire billing orchestrator if price is specified
-        bill_task = None
-        if price is not None:
-            bill_task = asyncio.create_task(billing_client.update_price_list(
-                items=[{
-                    "item_type": "ADMISSION",
-                    "reference_id": name,
-                    "price": price
-                }],
-                metadata=metadata
-            ))
+        if not cat_res:
+            return None
             
-        cat_res = await cat_task
-        if bill_task:
-            await bill_task
+        # Fire billing orchestrator if price is specified
+        if price is not None and "id" in cat_res:
+            try:
+                await billing_client.update_price_list(
+                    items=[{
+                        "item_type": "ADMISSION",
+                        "reference_id": cat_res["id"],
+                        "price": price
+                    }],
+                    metadata=metadata
+                )
+            except Exception as e:
+                logger.warning(f"Failed to update pricing for category {cat_res['id']}: {e}")
             
         if cat_res:
             return BedCategoryType(**cat_res)
@@ -412,7 +413,7 @@ class Mutation:
     ) -> BedType:
         logger.info(f"Received upsert_bed request from frontend for code {code}")
         
-        md_client = info.context["clients"]["master_data"]
+        md_client: MasterDataClient = client_refs["master_data"]
         res = await md_client.upsert_bed(
             bed_id=bed_id,
             code=code,
@@ -437,6 +438,6 @@ class Mutation:
             id=res["id"],
             code=res["code"],
             ward_id=res["ward_id"],
-            status=res["status"],
+            status=_BED_STATUS_MAP.get(res["status"], BedStatus.AVAILABLE),
             category=category_msg,
         )
