@@ -126,6 +126,7 @@ jobs:
           pack build $APP_IMAGE \
             --path ./hospital-root/${{ matrix.service }} \
             --builder paketobuildpacks/builder-jammy-base \
+            --buildpack paketo-buildpacks/python \
             --run-image $RUN_IMAGE \
             --env BP_CPYTHON_VERSION=3.11 \
             --publish
@@ -190,6 +191,7 @@ jobs:
           pack build $APP_IMAGE \
             --path ./hospital-root/${{ matrix.service }} \
             --builder paketobuildpacks/builder-jammy-base \
+            --buildpack paketo-buildpacks/python \
             --run-image $RUN_IMAGE \
             --platform linux/arm64 \
             --pull-policy never \
