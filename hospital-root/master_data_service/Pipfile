@@ -8,12 +8,13 @@ grpcio = "*"
 sqlalchemy = {extras = ["asyncio"], version = "*"}
 asyncpg = "*"
 pydantic-settings = "*"
+pydantic = "*"
 pyjwt = "*"
-aiokafka = "*"
 confluent-kafka = "*"
 alembic = "*"
 protobuf = "*"
 grpcio-tools = "*"
+aiokafka = "*"
 
 [dev-packages]
 pytest = "*"
