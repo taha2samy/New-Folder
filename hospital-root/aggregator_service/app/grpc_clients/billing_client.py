@@ -31,3 +31,19 @@ class BillingClient:
         except grpc.RpcError as e:
             logger.error(f"gRPC BillingRequest failed: {e}")
             return None
+
+    async def update_price_list(self, items: list[dict], metadata: tuple) -> bool:
+        try:
+            proto_items = [
+                billing_pb2.PriceItem(
+                    item_type=i["item_type"],
+                    reference_id=i["reference_id"],
+                    price=i["price"]
+                ) for i in items
+            ]
+            request = billing_pb2.PriceRequest(items=proto_items)
+            response = await self.stub.UpdatePriceList(request, metadata=metadata)
+            return response.success
+        except grpc.RpcError as e:
+            logger.error(f"gRPC UpdatePriceList failed: {e}")
+            return False

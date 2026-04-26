@@ -24,6 +24,7 @@ from app.domain.models import (
     Ward,
     Bed,
     BedStatusEnum,
+    BedCategory,
 )
 
 logger = logging.getLogger(__name__)
@@ -122,35 +123,16 @@ class MasterDataRepository:
             ward = Ward(
                 code=code,
                 name=name,
-                beds_count=beds_count,
+                beds_count=0, # Computed reality replaces this
                 is_opd=is_opd,
                 created_by=admin_id,
             )
             self._session.add(ward)
             await self._session.flush() # Get ward.id
 
-        # Reconcile Beds
-        current_beds = await self.get_beds_by_ward(ward.id)
-        current_count = len(current_beds)
-        
-        if beds_count > current_count:
-            # Add missing beds
-            for i in range(current_count + 1, beds_count + 1):
-                new_bed = Bed(
-                    ward_id=ward.id,
-                    code=f"{ward.code}-B{i:02d}",
-                    status=BedStatusEnum.AVAILABLE,
-                    category="GENERAL"
-                )
-                self._session.add(new_bed)
-        elif beds_count < current_count:
-            # Soft-delete excess beds (from the end)
-            excess = current_beds[beds_count:]
-            for bed in excess:
-                bed.is_deleted = True
-        
-        # Finally, the ward's beds_count is updated to the target number
-        ward.beds_count = beds_count
+        # Beds are now managed individually via upsert_bed.
+        # We compute the actual bed count rather than trusting the payload.
+        ward.beds_count = await self.sync_ward_bed_count(ward.id)
         await self._session.flush()
         return ward
 
@@ -158,6 +140,7 @@ class MasterDataRepository:
         """Return all non-deleted beds in a ward."""
         result = await self._session.execute(
             select(Bed)
+            .options(selectinload(Bed.category_rel))
             .where((Bed.ward_id == ward_id) & (Bed.is_deleted == False))
             .order_by(Bed.code)
         )
@@ -167,6 +150,7 @@ class MasterDataRepository:
         """Return all registered, non-deleted beds in the hospital."""
         result = await self._session.execute(
             select(Bed)
+            .options(selectinload(Bed.category_rel))
             .where(Bed.is_deleted == False)
             .order_by(Bed.code)
         )
@@ -176,6 +160,7 @@ class MasterDataRepository:
         """Return a single non-deleted bed by ID."""
         result = await self._session.execute(
             select(Bed)
+            .options(selectinload(Bed.category_rel))
             .where((Bed.id == bed_id) & (Bed.is_deleted == False))
         )
         return result.scalar_one_or_none()
@@ -184,6 +169,7 @@ class MasterDataRepository:
         """Update bed status with row-level locking to prevent race conditions."""
         result = await self._session.execute(
             select(Bed)
+            .options(selectinload(Bed.category_rel))
             .where((Bed.id == bed_id) & (Bed.is_deleted == False))
             .with_for_update() # Row-level lock
         )
@@ -194,6 +180,60 @@ class MasterDataRepository:
         bed.status = status
         await self._session.flush()
         return bed
+
+    async def upsert_bed(
+        self,
+        *,
+        bed_id: Optional[str],
+        code: str,
+        ward_id: str,
+        category_id: str,
+        status: BedStatusEnum,
+    ) -> Bed:
+        """Create or update an individual Bed with validations."""
+        # 1. Validate Ward exists
+        ward_result = await self._session.execute(select(Ward).where(Ward.id == ward_id))
+        if not ward_result.scalar_one_or_none():
+            raise EntityNotFoundError(f"Ward '{ward_id}' not found.")
+
+        # 2. Validate Category exists
+        cat_result = await self._session.execute(select(BedCategory).where(BedCategory.id == category_id))
+        if not cat_result.scalar_one_or_none():
+            raise EntityNotFoundError(f"BedCategory '{category_id}' not found.")
+
+        # 3. Check code uniqueness within ward
+        code_check = await self._session.execute(
+            select(Bed).where(
+                (Bed.code == code) & 
+                (Bed.ward_id == ward_id) & 
+                (Bed.is_deleted == False) & 
+                (Bed.id != (bed_id or ""))
+            )
+        )
+        if code_check.scalar_one_or_none():
+            raise DuplicateCodeError(f"Bed code '{code}' already exists in ward '{ward_id}'.")
+
+        if bed_id:
+            bed = await self.get_bed_by_id(bed_id)
+            if bed is None:
+                raise EntityNotFoundError(f"Bed '{bed_id}' not found.")
+            bed.code = code
+            bed.ward_id = ward_id
+            bed.category_id = category_id
+            bed.status = status
+        else:
+            bed = Bed(
+                code=code,
+                ward_id=ward_id,
+                category_id=category_id,
+                status=status
+            )
+            self._session.add(bed)
+
+        await self._session.flush()
+        
+        # Reload with relationships specifically for correct gRPC translation
+        return await self.get_bed_by_id(bed.id)
 
     async def sync_ward_bed_count(self, ward_id: str) -> int:
         """
@@ -209,9 +249,45 @@ class MasterDataRepository:
             .where((Bed.ward_id == ward_id) & (Bed.is_deleted == False))
         )
         actual_count = count_result.scalar() or 0
-        ward.beds_count = actual_count
         await self._session.flush()
         return actual_count
+
+    # ------------------------------------------------------------------
+    # BedCategory operations
+    # ------------------------------------------------------------------
+
+    async def get_all_bed_categories(self) -> List[BedCategory]:
+        """Return all bed category variants."""
+        result = await self._session.execute(
+            select(BedCategory).order_by(BedCategory.name)
+        )
+        return list(result.scalars().all())
+
+    async def get_bed_category_by_id(self, cat_id: str) -> Optional[BedCategory]:
+        result = await self._session.execute(
+            select(BedCategory).where(BedCategory.id == cat_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def upsert_bed_category(
+        self,
+        *,
+        id: Optional[str],
+        name: str,
+        description: str,
+    ) -> BedCategory:
+        if id:
+            cat = await self.get_bed_category_by_id(id)
+            if cat is None:
+                raise EntityNotFoundError(f"BedCategory '{id}' not found.")
+            cat.name = name
+            cat.description = description
+        else:
+            cat = BedCategory(name=name, description=description)
+            self._session.add(cat)
+        
+        await self._session.flush()
+        return cat
 
     # ------------------------------------------------------------------
     # Disease operations

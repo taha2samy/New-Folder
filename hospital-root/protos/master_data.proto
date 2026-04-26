@@ -41,6 +41,14 @@ service MasterDataService {
   rpc MarkBedAsReady  (BedQuery)             returns (BedMessage);
   // Returns all registered beds in the system.
   rpc GetAllBeds       (EmptyRequest)         returns (BedsResponse);
+  // Creates or updates a single bed individually.
+  rpc UpsertBed        (UpsertBedRequest)     returns (BedMessage);
+  
+  // --- Bed Category RPCs ---
+  // Returns all available bed categories.
+  rpc GetBedCategories (EmptyRequest)         returns (BedCategoriesResponse);
+  // Creates or updates a BedCategory record.
+  rpc UpsertBedCategory (UpsertBedCategoryRequest) returns (BedCategoryMessage);
 }
 
 // ---------------------------------------------------------------------------
@@ -93,11 +101,27 @@ enum BedStatus {
 }
 
 message BedMessage {
-  string    bed_id   = 1;
-  string    bed_code = 2;
-  string    ward_id  = 3;
-  BedStatus status   = 4;
-  string    category = 5; // e.g. GENERAL, SEMI-PRIVATE, PRIVATE
+  string             bed_id   = 1;
+  string             bed_code = 2;
+  string             ward_id  = 3;
+  BedStatus          status   = 4;
+  BedCategoryMessage category = 5; // e.g. GENERAL, SEMI-PRIVATE, PRIVATE
+}
+
+message BedCategoryMessage {
+  string id          = 1;
+  string name        = 2;
+  string description = 3;
+}
+
+message BedCategoriesResponse {
+  repeated BedCategoryMessage categories = 1;
+}
+
+message UpsertBedCategoryRequest {
+  string id          = 1; // Empty string for create
+  string name        = 2;
+  string description = 3;
 }
 
 message BedsResponse {
@@ -107,6 +131,14 @@ message BedsResponse {
 message UpdateBedStatusRequest {
   string    bed_id = 1;
   BedStatus status = 2;
+}
+
+message UpsertBedRequest {
+  string    bed_id      = 1; // Empty for insert
+  string    code        = 2;
+  string    ward_id     = 3;
+  string    category_id = 4;
+  BedStatus status      = 5;
 }
 
 // ---------------------------------------------------------------------------

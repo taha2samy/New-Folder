@@ -201,3 +201,78 @@ class MasterDataClient:
         except grpc.RpcError as e:
             logger.error("MasterDataService.UpsertOperationType failed: %s", e.details())
             return None
+
+    async def get_bed_categories(self, metadata: tuple) -> List[Dict[str, Any]]:
+        """Fetch all bed categories."""
+        try:
+            req = master_data_pb2.EmptyRequest()
+            res = await self.stub.GetBedCategories(req, metadata=metadata)
+            return [
+                {
+                    "id": c.id,
+                    "name": c.name,
+                    "description": c.description,
+                }
+                for c in res.categories
+            ]
+        except grpc.RpcError as e:
+            logger.error("MasterDataService.GetBedCategories failed: %s", e.details())
+            return []
+
+    async def upsert_bed_category(
+        self,
+        name: str,
+        description: str,
+        metadata: tuple,
+        id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Create or update a BedCategory."""
+        try:
+            req = master_data_pb2.UpsertBedCategoryRequest(
+                id=id or "",
+                name=name,
+                description=description,
+            )
+            res = await self.stub.UpsertBedCategory(req, metadata=metadata)
+            return {
+                "id": res.id,
+                "name": res.name,
+                "description": res.description,
+            }
+        except grpc.RpcError as e:
+            logger.error("MasterDataService.UpsertBedCategory failed: %s", e.details())
+            return None
+
+    async def upsert_bed(
+        self,
+        code: str,
+        ward_id: str,
+        category_id: str,
+        status: int,
+        metadata: tuple,
+        bed_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Create or update a single Bed."""
+        try:
+            req = master_data_pb2.UpsertBedRequest(
+                bed_id=bed_id or "",
+                code=code,
+                ward_id=ward_id,
+                category_id=category_id,
+                status=status,
+            )
+            res = await self.stub.UpsertBed(req, metadata=metadata)
+            return {
+                "id": res.bed_id,
+                "code": res.bed_code,
+                "ward_id": res.ward_id,
+                "status": res.status,
+                "category": {
+                    "id": res.category.id,
+                    "name": res.category.name,
+                    "description": res.category.description
+                } if res.category else None,
+            }
+        except grpc.RpcError as e:
+            logger.error("MasterDataService.UpsertBed failed: %s", e.details())
+            return None

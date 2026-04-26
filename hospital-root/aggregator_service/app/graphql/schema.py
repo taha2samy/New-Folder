@@ -48,12 +48,19 @@ class BedStatus(enum.Enum):
 
 
 @strawberry.type
+class BedCategoryType:
+    id: str
+    name: str
+    description: str
+
+
+@strawberry.type
 class BedType:
     id: str
     code: str
     ward_id: str
     status: BedStatus
-    category: str
+    category: Optional[BedCategoryType]
 
 
 @strawberry.type
@@ -93,6 +100,7 @@ class ReferenceDataSummary:
     diseases: List[DiseaseRefType]
     exam_types: List[ExamTypeRef]
     operation_types: List[OperationTypeRef]
+    bed_categories: List[BedCategoryType]
 
 @strawberry.type
 class PatientType:

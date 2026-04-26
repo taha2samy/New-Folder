@@ -15,7 +15,7 @@ import grpc
 
 from app.generated import master_data_pb2, master_data_pb2_grpc
 from app.domain.models import ProcedureTypeEnum, BedStatusEnum
-from app.domain.repository import EntityNotFoundError, MasterDataRepository
+from app.domain.repository import EntityNotFoundError, DuplicateCodeError, MasterDataRepository
 from app.events.producers import MasterDataEventProducer
 
 logger = logging.getLogger(__name__)
@@ -270,7 +270,11 @@ class MasterDataServiceHandler(master_data_pb2_grpc.MasterDataServiceServicer):
                         bed_code=b.code,
                         ward_id=b.ward_id,
                         status=_BED_STATUS_MAP.get(b.status, master_data_pb2.BedStatus.AVAILABLE),
-                        category=b.category,
+                        category=master_data_pb2.BedCategoryMessage(
+                            id=b.category_rel.id,
+                            name=b.category_rel.name,
+                            description=b.category_rel.description or "",
+                        ) if b.category_rel else None,
                     )
                     for b in beds
                 ]
@@ -296,7 +300,11 @@ class MasterDataServiceHandler(master_data_pb2_grpc.MasterDataServiceServicer):
                 bed_code=bed.code,
                 ward_id=bed.ward_id,
                 status=_BED_STATUS_MAP.get(bed.status),
-                category=bed.category,
+                category=master_data_pb2.BedCategoryMessage(
+                    id=bed.category_rel.id,
+                    name=bed.category_rel.name,
+                    description=bed.category_rel.description or "",
+                ) if bed.category_rel else None,
             )
         except EntityNotFoundError as exc:
             await context.abort(grpc.StatusCode.NOT_FOUND, str(exc))
@@ -318,7 +326,11 @@ class MasterDataServiceHandler(master_data_pb2_grpc.MasterDataServiceServicer):
                 bed_code=bed.code,
                 ward_id=bed.ward_id,
                 status=_BED_STATUS_MAP.get(bed.status),
-                category=bed.category,
+                category=master_data_pb2.BedCategoryMessage(
+                    id=bed.category_rel.id,
+                    name=bed.category_rel.name,
+                    description=bed.category_rel.description or "",
+                ) if bed.category_rel else None,
             )
         except Exception as exc:
             logger.exception("GetBed error: %s", exc)
@@ -345,7 +357,11 @@ class MasterDataServiceHandler(master_data_pb2_grpc.MasterDataServiceServicer):
                 bed_code=bed.code,
                 ward_id=bed.ward_id,
                 status=master_data_pb2.BedStatus.AVAILABLE,
-                category=bed.category,
+                category=master_data_pb2.BedCategoryMessage(
+                    id=bed.category_rel.id,
+                    name=bed.category_rel.name,
+                    description=bed.category_rel.description or "",
+                ) if bed.category_rel else None,
             )
         except EntityNotFoundError as exc:
             await context.abort(grpc.StatusCode.NOT_FOUND, str(exc))
@@ -367,7 +383,11 @@ class MasterDataServiceHandler(master_data_pb2_grpc.MasterDataServiceServicer):
                         bed_code=b.code,
                         ward_id=b.ward_id,
                         status=_BED_STATUS_MAP.get(b.status, master_data_pb2.BedStatus.AVAILABLE),
-                        category=b.category,
+                        category=master_data_pb2.BedCategoryMessage(
+                            id=b.category_rel.id,
+                            name=b.category_rel.name,
+                            description=b.category_rel.description or "",
+                        ) if b.category_rel else None,
                     )
                     for b in beds
                 ]
@@ -375,6 +395,31 @@ class MasterDataServiceHandler(master_data_pb2_grpc.MasterDataServiceServicer):
         except Exception as exc:
             logger.exception("GetAllBeds error: %s", exc)
             await context.abort(grpc.StatusCode.INTERNAL, "Error retrieving all beds.")
+
+    async def GetBedCategories(self, request, context):
+        async with _cache_lock:
+            cached = _cache_get("bed_categories")
+            if cached:
+                return cached
+        try:
+            async with self._db_session_factory() as session:
+                repo = MasterDataRepository(session)
+                cats = await repo.get_all_bed_categories()
+            response = master_data_pb2.BedCategoriesResponse(
+                categories=[
+                    master_data_pb2.BedCategoryMessage(
+                        id=c.id,
+                        name=c.name,
+                        description=c.description or ""
+                    ) for c in cats
+                ]
+            )
+            async with _cache_lock:
+                _cache_set("bed_categories", response)
+            return response
+        except Exception as exc:
+            logger.exception("GetBedCategories error: %s", exc)
+            await context.abort(grpc.StatusCode.INTERNAL, "Error retrieving bed categories.")
 
     # ------------------------------------------------------------------
     # Write RPCs (Admin-only — enforced by AuthInterceptor)
@@ -563,3 +608,92 @@ class MasterDataServiceHandler(master_data_pb2_grpc.MasterDataServiceServicer):
         except Exception as exc:
             logger.exception("UpsertOperationType error: %s", exc)
             await context.abort(grpc.StatusCode.INTERNAL, "Error upserting operation type.")
+
+    async def UpsertBedCategory(self, request, context):
+        user_id = self._extract_caller(context)
+        is_create = not request.id
+        try:
+            async with self._db_session_factory() as session:
+                async with session.begin():
+                    repo = MasterDataRepository(session)
+                    cat = await repo.upsert_bed_category(
+                        id=request.id or None,
+                        name=request.name,
+                        description=request.description
+                    )
+            
+            async with _cache_lock:
+                _cache_invalidate("bed_categories")
+
+            self._event_producer.broadcast_reference_data_changed(
+                entity_type="BED_CATEGORY",
+                action="CREATE" if is_create else "UPDATE",
+                admin_id=user_id,
+                entity_id=cat.id,
+            )
+
+            return master_data_pb2.BedCategoryMessage(
+                id=cat.id,
+                name=cat.name,
+                description=cat.description or ""
+            )
+        except EntityNotFoundError as exc:
+            await context.abort(grpc.StatusCode.NOT_FOUND, str(exc))
+        except Exception as exc:
+            logger.exception("UpsertBedCategory error: %s", exc)
+            await context.abort(grpc.StatusCode.INTERNAL, "Error upserting bed category.")
+
+    async def UpsertBed(self, request, context):
+        user_id = self._extract_caller(context)
+        is_create = not request.bed_id
+
+        status_enum = _PROTO_BED_STATUS_MAP.get(request.status)
+        if status_enum is None:
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Invalid bed status.")
+
+        try:
+            async with self._db_session_factory() as session:
+                async with session.begin():
+                    repo = MasterDataRepository(session)
+                    bed = await repo.upsert_bed(
+                        bed_id=request.bed_id or None,
+                        code=request.code,
+                        ward_id=request.ward_id,
+                        category_id=request.category_id,
+                        status=status_enum,
+                    )
+                    
+                    # Compute the new actual beds count for the ward
+                    await repo.sync_ward_bed_count(request.ward_id)
+
+            # Invalidate caches
+            async with _cache_lock:
+                _cache_invalidate("wards")
+                _cache_invalidate("all_beds")
+
+            # Broadcast BedStatusChanged matching existing contract
+            self._event_producer.broadcast_reference_data_changed(
+                entity_type="BED",
+                action="CREATE" if is_create else "UPDATE",
+                admin_id=user_id,
+                entity_id=bed.id,
+            )
+
+            return master_data_pb2.BedMessage(
+                bed_id=bed.id,
+                bed_code=bed.code,
+                ward_id=bed.ward_id,
+                status=_BED_STATUS_MAP.get(bed.status),
+                category=master_data_pb2.BedCategoryMessage(
+                    id=bed.category_rel.id,
+                    name=bed.category_rel.name,
+                    description=bed.category_rel.description or "",
+                ) if bed.category_rel else None,
+            )
+        except EntityNotFoundError as exc:
+            await context.abort(grpc.StatusCode.NOT_FOUND, str(exc))
+        except DuplicateCodeError as exc:
+            await context.abort(grpc.StatusCode.ALREADY_EXISTS, str(exc))
+        except Exception as exc:
+            logger.exception("UpsertBed error: %s", exc)
+            await context.abort(grpc.StatusCode.INTERNAL, "Error upserting bed.")

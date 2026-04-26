@@ -64,6 +64,21 @@ class Ward(Base):
     beds = relationship("Bed", back_populates="ward", cascade="all, delete-orphan")
 
 
+class BedCategory(Base):
+    """
+    Represents a dynamic category for a bed (e.g. GENERAL, ICU, VIP).
+    Prices for these categories are orchestrated via the Billing Service.
+    """
+
+    __tablename__ = "bed_categories"
+
+    id          = Column(String, primary_key=True, default=_generate_uuid)
+    name        = Column(String, unique=True, nullable=False, index=True)
+    description = Column(Text, nullable=True)
+
+    beds = relationship("Bed", back_populates="category_rel")
+
+
 class Bed(Base):
     """
     Represents an individual bed within a ward.
@@ -72,14 +87,15 @@ class Bed(Base):
 
     __tablename__ = "beds"
 
-    id       = Column(String, primary_key=True, default=_generate_uuid)
-    code     = Column(String, nullable=False) # e.g. B-101
-    ward_id  = Column(String, ForeignKey("wards.id"), nullable=False, index=True)
-    status     = Column(Enum(BedStatusEnum), nullable=False, default=BedStatusEnum.AVAILABLE)
-    category   = Column(String, nullable=False, default="GENERAL") # e.g. PRIVATE, SEMI-PRIVATE
-    is_deleted = Column(Boolean, nullable=False, default=False)
+    id          = Column(String, primary_key=True, default=_generate_uuid)
+    code        = Column(String, nullable=False) # e.g. B-101
+    ward_id     = Column(String, ForeignKey("wards.id"), nullable=False, index=True)
+    status      = Column(Enum(BedStatusEnum), nullable=False, default=BedStatusEnum.AVAILABLE)
+    category_id = Column(String, ForeignKey("bed_categories.id"), nullable=False, index=True)
+    is_deleted  = Column(Boolean, nullable=False, default=False)
 
     ward = relationship("Ward", back_populates="beds")
+    category_rel = relationship("BedCategory", back_populates="beds")
 
     __table_args__ = (
         UniqueConstraint("code", "ward_id", name="uq_bed_code_per_ward"),

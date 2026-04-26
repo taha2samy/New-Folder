@@ -2,7 +2,8 @@
 
 import asyncio
 import time
-from typing import Optional
+import logging
+from typing import List, Optional
 
 import strawberry
 from strawberry.types import Info
@@ -24,6 +25,7 @@ from app.graphql.schema import (
     OperationTypeRef,
     BillItemType,
     MarkBedResponse,
+    BedCategoryType,
 )
 from app.generated import master_data_pb2
 from app.grpc_clients.clinical_client import ClinicalClient
@@ -32,6 +34,8 @@ from app.grpc_clients.patient_client import PatientClient
 from app.grpc_clients.pharmacy_client import PharmacyClient
 from app.grpc_clients.master_data_client import MasterDataClient
 from app.grpc_clients.billing_client import BillingClient
+
+logger = logging.getLogger(__name__)
 
 _BED_STATUS_MAP = {
     master_data_pb2.BedStatus.AVAILABLE:   BedStatus.AVAILABLE,
@@ -247,12 +251,26 @@ class Query:
         exams_list = [ExamTypeRef(**e) for e in exams_raw]
         ops_list = [OperationTypeRef(**o) for o in ops_raw]
         
+        # Sequentially fetch for now to not break gather format
+        bed_cats_raw = await master_data_client.get_bed_categories(metadata)
+        bed_cats_list = [BedCategoryType(**c) for c in bed_cats_raw]
+        
         return ReferenceDataSummary(
             wards=wards_list,
             diseases=diseases_list,
             exam_types=exams_list,
-            operation_types=ops_list
+            operation_types=ops_list,
+            bed_categories=bed_cats_list
         )
+
+    @strawberry.field
+    async def get_bed_categories(self, info: Info) -> List[BedCategoryType]:
+        context = info.context
+        metadata = context.metadata
+        
+        master_data_client: MasterDataClient = client_refs["master_data"]
+        bed_cats_raw = await master_data_client.get_bed_categories(metadata)
+        return [BedCategoryType(**c) for c in bed_cats_raw]
 
 @strawberry.type
 class Mutation:
@@ -337,3 +355,88 @@ class Mutation:
         if result:
             return OperationTypeRef(**result)
         return None
+
+    @strawberry.mutation
+    async def upsert_bed_category(
+        self,
+        info: Info,
+        name: str,
+        description: str,
+        price: Optional[float] = None,
+        id: Optional[str] = None
+    ) -> Optional[BedCategoryType]:
+        """Create or update a bed category, and sync pricing."""
+        context = info.context
+        metadata = context.metadata
+        
+        master_client: MasterDataClient = client_refs["master_data"]
+        billing_client: BillingClient = client_refs["billing"]
+        
+        # Fire master data upsert
+        cat_task = asyncio.create_task(master_client.upsert_bed_category(
+            name=name,
+            description=description,
+            metadata=metadata,
+            id=id
+        ))
+        
+        # Concurrently fire billing orchestrator if price is specified
+        bill_task = None
+        if price is not None:
+            bill_task = asyncio.create_task(billing_client.update_price_list(
+                items=[{
+                    "item_type": "ADMISSION",
+                    "reference_id": name,
+                    "price": price
+                }],
+                metadata=metadata
+            ))
+            
+        cat_res = await cat_task
+        if bill_task:
+            await bill_task
+            
+        if cat_res:
+            return BedCategoryType(**cat_res)
+        return None
+
+    @strawberry.mutation
+    async def upsert_bed(
+        self,
+        info: Info,
+        code: str,
+        ward_id: str,
+        category_id: str,
+        status: int,
+        bed_id: Optional[str] = None,
+    ) -> BedType:
+        logger.info(f"Received upsert_bed request from frontend for code {code}")
+        
+        md_client = info.context["clients"]["master_data"]
+        res = await md_client.upsert_bed(
+            bed_id=bed_id,
+            code=code,
+            ward_id=ward_id,
+            category_id=category_id,
+            status=status,
+            metadata=info.context["grpc_metadata"]
+        )
+        
+        if not res:
+            raise Exception("Failed to upsert bed in master data service.")
+            
+        category_msg = None
+        if res.get("category"):
+            category_msg = BedCategoryType(
+                id=res["category"]["id"],
+                name=res["category"]["name"],
+                description=res["category"]["description"],
+            )
+
+        return BedType(
+            id=res["id"],
+            code=res["code"],
+            ward_id=res["ward_id"],
+            status=res["status"],
+            category=category_msg,
+        )
