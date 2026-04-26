@@ -112,6 +112,11 @@ jobs:
       - name: Setup Pack CLI
         uses: buildpacks/github-actions/setup-pack@v5.12.0
 
+      - name: Setup Taskfile
+        uses: ./.github/actions/setup-taskfile
+      - name: generate grpc
+        run: task all:generate
+
       - name: Build and Push App (AMD64)
         run: |
           cd ./hospital-root/${{ matrix.service }} && ln -s app/main.py main.py && cd -
@@ -178,6 +183,10 @@ jobs:
 
       - name: Setup Pack CLI
         uses: buildpacks/github-actions/setup-pack@v5.12.0
+      - name: Setup Taskfile
+        uses: ./.github/actions/setup-taskfile
+      - name: generate grpc
+        run: task all:generate
 
       - name: Build and Push App (ARM64)
         run: |
