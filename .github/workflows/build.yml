@@ -190,6 +190,7 @@ jobs:
             --path ./hospital-root/${{ matrix.service }} \
             --builder paketobuildpacks/builder-jammy-base \
             --run-image $RUN_IMAGE \
+            --platform linux/arm64 \
             --env BP_CPYTHON_VERSION=3.11 \
             --publish
 # ==========================================================================
