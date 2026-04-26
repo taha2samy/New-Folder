@@ -178,8 +178,8 @@ jobs:
         run: |
           cd ./hospital-root/frontend && ln -s app/main.py main.py && cd -
           # Use the exact Git SHA for a stable, unique tag across all jobs
-          BASE_TAG=${{ github.sha }}
-          APP_IMAGE=${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/hms-frontend:${BASE_TAG}
+          BASE_TAG=${{ github.sha }} # do not forget taha
+          APP_IMAGE=${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/hms-frontend:latest
           RUN_IMAGE=${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/hms-run-base:noble
 
           echo "Building frontend for AMD64 architecture..."
