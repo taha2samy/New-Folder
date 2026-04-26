@@ -172,7 +172,8 @@ jobs:
         run: task all:install
       - name: generate grpc
         run: task all:generate
-
+      - name: setuo pack
+        uses: buildpacks/github-actions/setup-pack@v5.12.0
       - name: Build and Push Frontend
         run: |
           cd ./hospital-root/frontend && ln -s app/main.py main.py && cd -
