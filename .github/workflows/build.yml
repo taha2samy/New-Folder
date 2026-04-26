@@ -187,6 +187,7 @@ jobs:
           # Pack automatically pulls the matching AMD64 slice from the run-image manifest
           pack build $APP_IMAGE \
             --path ./hosptial \
+            --buildpack paketobuildpacks/nodejs \
             --builder paketobuildpacks/builder-jammy-base \
             --run-image $RUN_IMAGE \
             --publish
