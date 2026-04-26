@@ -15,7 +15,6 @@ asyncpg = "*"
 aiokafka = "*"
 python-jose = "*"
 protobuf = "*"
-grpcio-tools = "*"
 
 [dev-packages]
 grpcio-tools = "*"

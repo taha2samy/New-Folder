@@ -5,6 +5,9 @@ name = "pypi"
 
 [packages]
 grpcio = "*"
+grpcio-tools = "*"
+protobuf = "*"
+
 pyjwt = "*"
 sqlalchemy = "*"
 asyncpg = "*"
@@ -12,8 +15,6 @@ aiokafka = "*"
 pydantic = "*"
 pydantic-settings = "*"
 alembic="*"  
-protobuf = "*"
-grpcio-tools = "*"
 
 [dev-packages]
 
