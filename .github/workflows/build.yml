@@ -114,6 +114,8 @@ jobs:
 
       - name: Setup Taskfile
         uses: ./.github/actions/setup-taskfile
+      - name: install dependencies
+        run: task all:install
       - name: generate grpc
         run: task all:generate
 
@@ -185,6 +187,8 @@ jobs:
         uses: buildpacks/github-actions/setup-pack@v5.12.0
       - name: Setup Taskfile
         uses: ./.github/actions/setup-taskfile
+      - name: install dependencies
+        run: task all:install
       - name: generate grpc
         run: task all:generate
 
