@@ -176,7 +176,6 @@ jobs:
         uses: buildpacks/github-actions/setup-pack@v5.12.0
       - name: Build and Push Frontend
         run: |
-          cd ./hospital-root/frontend && ln -s app/main.py main.py && cd -
           # Use the exact Git SHA for a stable, unique tag across all jobs
           BASE_TAG=${{ github.sha }} # do not forget taha
           APP_IMAGE=${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/hms-frontend:latest
