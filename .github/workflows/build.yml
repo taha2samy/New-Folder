@@ -190,6 +190,8 @@ jobs:
             --buildpack docker.io/paketobuildpacks/nodejs \
             --buildpack docker.io/paketobuildpacks/procfile \
             --builder paketobuildpacks/builder-jammy-base \
+            --env BP_NODE_RUN_SCRIPTS=build \
+            --env BP_NODE_VERSION=20 \  
             --run-image $RUN_IMAGE \
             --publish
 
