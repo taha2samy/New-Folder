@@ -192,6 +192,7 @@ jobs:
             --builder paketobuildpacks/builder-jammy-base \
             --run-image $RUN_IMAGE \
             --platform linux/arm64 \
+            --pull-policy never \
             --env BP_CPYTHON_VERSION=3.11 \
             --publish
 # ==========================================================================
