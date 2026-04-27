@@ -8,6 +8,7 @@ services:
       environment:
         - VITE_GRAPH_API_URL=http://localhost:8000/graphql 
         - VITE_MANUAL_TEST_TOKEN=${VITE_MANUAL_TEST_TOKEN} 
+        - VITE_USE_MOCK="false"
       networks:
         - hms_network
       depends_on:
