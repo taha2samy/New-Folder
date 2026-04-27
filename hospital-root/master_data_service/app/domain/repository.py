@@ -40,7 +40,7 @@ class DuplicateCodeError(Exception):
 
 class MasterDataRepository:
     """
-    Provides all read/write operations against the reference_db schema.
+    Provides all read/write operations against the master_data_db schema.
     Instances must be used within the scope of an active AsyncSession.
     """
 

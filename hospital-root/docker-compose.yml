@@ -8,7 +8,7 @@ services:
       environment:
         - VITE_GRAPH_API_URL=http://localhost:8000/graphql 
         - VITE_MANUAL_TEST_TOKEN=${VITE_MANUAL_TEST_TOKEN} 
-        - VITE_USE_MOCK="false"
+        - VITE_USE_MOCK=false
       networks:
         - hms_network
       depends_on:
@@ -156,7 +156,7 @@ services:
     env_file:
       - .env
     environment:
-      - MASTER_DATA_SVC_DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/reference_db
+      - MASTER_DATA_SVC_DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/master_data_db
       - MASTER_DATA_SVC_KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
       - MASTER_DATA_SVC_JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - MASTER_DATA_SVC_JWT_ALGORITHM=${JWT_ALGORITHM}

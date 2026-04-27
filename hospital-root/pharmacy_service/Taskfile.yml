@@ -33,6 +33,10 @@ tasks:
     desc: "Run unit/integration tests"
     cmds:
       - pipenv run pytest
+  migrate-generate:
+    desc: "Generate new migration"
+    cmds:
+      - PYTHONPATH=. pipenv run alembic revision --autogenerate -m "{{.MSG}}"
 
   clean:
     desc: "Wipe generated files and caches"

@@ -19,6 +19,11 @@ tasks:
     desc: "Run database migrations"
     cmds:
       - PYTHONPATH=. pipenv run alembic upgrade head
+  migrate-generate:
+    desc: "Generate new migration"
+    cmds:
+      - PYTHONPATH=. pipenv run alembic revision --autogenerate -m "{{.MSG}}"
+
   gen-reqs:
     desc: "Convert Pipfile to requirements.txt"
     cmds:

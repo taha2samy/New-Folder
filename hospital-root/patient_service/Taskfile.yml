@@ -23,6 +23,10 @@ tasks:
     desc: "Convert Pipfile to requirements.txt"
     cmds:
       - PYTHONPATH=. pipenv requirements > requirements.txt
+  migrate-generate:
+    desc: "Generate new migration"
+    cmds:
+      - PYTHONPATH=. pipenv run alembic revision --autogenerate -m "{{.MSG}}"
 
   run:
     desc: "Start the local dev server"

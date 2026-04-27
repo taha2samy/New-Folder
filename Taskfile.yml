@@ -29,7 +29,18 @@ includes:
     dir: ./hospital-root/aggregator_service
 
 tasks:
-  
+
+  all:migrate-generate:
+    desc: "Generate migrations for all services"
+    vars:
+      MSG: "auto migration"
+    cmds:
+      - task billing:migrate-generate MSG="{{.MSG}}"
+      - task laboratory:migrate-generate MSG="{{.MSG}}"
+      - task master_data:migrate-generate MSG="{{.MSG}}"
+      - task patient:migrate-generate MSG="{{.MSG}}"
+      - task pharmacy:migrate-generate MSG="{{.MSG}}"
+
   all:generate:
     desc: Regenerate all gRPC definitions across all microservices
     cmds:
