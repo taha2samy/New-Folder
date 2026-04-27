@@ -4,10 +4,10 @@ services:
   frontend-service:
       image: ghcr.io/taha2samy/hms-frontend:latest
       ports:
-        - "3000:80"  # البورت الخارجي 3000، والداخلي 80 (بافتراض استخدام Nginx في الصورة)
+        - "3000:80" 
       environment:
-        - VITE_GRAPH_API_URL=http://localhost:8000/graphql # رابط الأجريجيتور من منظور المتصفح
-        - VITE_MANUAL_TEST_TOKEN=${VITE_MANUAL_TEST_TOKEN} # هنسحبها من ملف .env
+        - VITE_GRAPH_API_URL=http://localhost:8000/graphql 
+        - VITE_MANUAL_TEST_TOKEN=${VITE_MANUAL_TEST_TOKEN} 
       networks:
         - hms_network
       depends_on:
