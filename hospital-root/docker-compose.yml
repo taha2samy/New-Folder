@@ -2,17 +2,21 @@ version: '3.8'
 
 services:
   frontend-service:
-      image: ghcr.io/taha2samy/hms-frontend:latest
-      ports:
-        - "3000:80" 
-      environment:
-        - VITE_GRAPH_API_URL=http://localhost:8000/graphql 
-        - VITE_MANUAL_TEST_TOKEN=${VITE_MANUAL_TEST_TOKEN} 
-        - VITE_USE_MOCK=false
-      networks:
-        - hms_network
-      depends_on:
-        - aggregator-service
+    image: ghcr.io/taha2samy/hms-frontend:latest
+    ports:
+      - "3000:80"
+    volumes:
+      - ./.env:/workspace/.env:ro
+    environment:
+      - VITE_GRAPH_API_URL=http://localhost:8000/graphql 
+      - VITE_MANUAL_TEST_TOKEN=${VITE_MANUAL_TEST_TOKEN}
+      - VITE_USE_MOCK=false
+    networks:
+      - hms_network
+    depends_on:
+      - aggregator-service
+
+     
 
   postgres:
     image: postgres:15-alpine

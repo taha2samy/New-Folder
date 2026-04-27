@@ -1,7 +1,23 @@
 import { useToast } from '../lib/toast';
 
-const GRAPH_API_URL = import.meta.env.VITE_GRAPH_API_URL;
-const MANUAL_TEST_TOKEN = import.meta.env.VITE_MANUAL_TEST_TOKEN;
+declare global {
+  interface Window {
+    _env_?: Record<string, string>;
+  }
+}
+
+export const getEnvDetailed = (key: string) => {
+  const runtimeVal = window._env_?.[key];
+  if (runtimeVal !== undefined && runtimeVal !== '') {
+    return { value: runtimeVal, source: 'runtime' };
+  }
+  return { value: import.meta.env[key], source: 'build' };
+};
+
+export const getEnv = (key: string) => getEnvDetailed(key).value;
+
+const GRAPH_API_URL = getEnv('VITE_GRAPH_API_URL');
+const MANUAL_TEST_TOKEN = getEnv('VITE_MANUAL_TEST_TOKEN');
 
 // Create an event target to broadcast diagnostic logs
 class DiagnosticEmitter extends EventTarget {}
@@ -26,9 +42,9 @@ export function setForceMock(value: boolean) {
 export async function checkHealth(): Promise<{ status: 'online' | 'unreachable' | 'unauthorized' | 'not_found' | 'mock', message?: string, error?: any }> {
   logDiagnostic('SYSTEM', 'Checking Environment Variables...');
 
-  const useMock = import.meta.env.VITE_USE_MOCK === 'true';
-  const apiUrl = import.meta.env.VITE_GRAPH_API_URL || 'NOT SET';
-  const hasToken = !!import.meta.env.VITE_MANUAL_TEST_TOKEN;
+  const useMock = getEnv('VITE_USE_MOCK') === 'true';
+  const apiUrl = getEnv('VITE_GRAPH_API_URL') || 'NOT SET';
+  const hasToken = !!getEnv('VITE_MANUAL_TEST_TOKEN');
 
   if (useMock) {
     logDiagnostic('MODE', 'Mock-Data Mode Active (VITE_USE_MOCK=true)');
@@ -40,17 +56,17 @@ export async function checkHealth(): Promise<{ status: 'online' | 'unreachable' 
   logDiagnostic('CHECK', `Pinging Aggregator: ${apiUrl}`);
   logDiagnostic('AUTH', `Authorization Header: ${hasToken ? 'Present' : 'MISSING'}`);
 
-  if (!import.meta.env.VITE_GRAPH_API_URL) {
+  if (!getEnv('VITE_GRAPH_API_URL')) {
     logDiagnostic('CONFIG', 'No API URL found, defaulting to MOCK mode.');
     return { status: 'mock' };
   }
 
   try {
-    const response = await fetch(import.meta.env.VITE_GRAPH_API_URL, {
+    const response = await fetch(getEnv('VITE_GRAPH_API_URL') as string, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(import.meta.env.VITE_MANUAL_TEST_TOKEN ? { 'Authorization': `Bearer ${import.meta.env.VITE_MANUAL_TEST_TOKEN}` } : {})
+        ...(getEnv('VITE_MANUAL_TEST_TOKEN') ? { 'Authorization': `Bearer ${getEnv('VITE_MANUAL_TEST_TOKEN')}` } : {})
       },
       body: JSON.stringify({ query: '{ __typename }' })
     });
@@ -86,17 +102,20 @@ export async function checkHealth(): Promise<{ status: 'online' | 'unreachable' 
 }
 
 export async function graphqlRequest<T>(query: string, variables: Record<string, any> = {}, forceMock = false): Promise<T> {
+  const apiUrl = getEnv('VITE_GRAPH_API_URL');
+  const token = getEnv('VITE_MANUAL_TEST_TOKEN');
+  
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
 
-  if (MANUAL_TEST_TOKEN) {
-    headers['Authorization'] = `Bearer ${MANUAL_TEST_TOKEN}`;
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
   try {
-    const useMock = import.meta.env.VITE_USE_MOCK === 'true';
-    if (!GRAPH_API_URL || forceMock || forceMockOverride || useMock) {
+    const useMock = getEnv('VITE_USE_MOCK') === 'true';
+    if (!apiUrl || forceMock || forceMockOverride || useMock) {
       throw new Error('MOCK_MODE'); // Simple flag for upstream
     }
 
@@ -110,7 +129,7 @@ export async function graphqlRequest<T>(query: string, variables: Record<string,
       }
     });
     
-    const response = await fetch(GRAPH_API_URL, {
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify({

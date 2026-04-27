@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, Bell, Moon, Sun, LayoutDashboard, Users, Stethoscope, Pill, Beaker, CreditCard, Settings, Building2, AlertCircle, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { NAV_ITEMS } from '../constants';
-import { checkHealth } from '../services/graphqlClient';
+import { checkHealth, getEnvDetailed } from '../services/graphqlClient';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -108,17 +108,26 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
             </p>
             
             <div className="pt-2 border-t border-[var(--border-color)] flex flex-col gap-1 text-[8px] font-mono text-slate-500 break-all bg-black/5 dark:bg-white/5 p-2 rounded">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">VITE_USE_MOCK:</span>
-                <span className="text-blue-500">{import.meta.env.VITE_USE_MOCK || 'false'}</span>
+              <div className="flex flex-col mb-1">
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">VITE_USE_MOCK:</span>
+                  {getEnvDetailed('VITE_USE_MOCK').source === 'runtime' && <span className="px-1 py-0.5 bg-purple-500/10 text-purple-500 rounded text-[8px] leading-none">(Runtime)</span>}
+                </div>
+                <span className="text-blue-500">{getEnvDetailed('VITE_USE_MOCK').value || 'false'}</span>
+              </div>
+              <div className="flex flex-col mb-1">
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">URL:</span>
+                  {getEnvDetailed('VITE_GRAPH_API_URL').source === 'runtime' && <span className="px-1 py-0.5 bg-purple-500/10 text-purple-500 rounded text-[8px] leading-none">(Runtime)</span>}
+                </div>
+                <span className="text-amber-500">{getEnvDetailed('VITE_GRAPH_API_URL').value || 'NOT SET'}</span>
               </div>
               <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">URL:</span>
-                <span className="text-amber-500">{import.meta.env.VITE_GRAPH_API_URL || 'NOT SET'}</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">JWT:</span>
-                <span className="text-emerald-500">{import.meta.env.VITE_MANUAL_TEST_TOKEN ? import.meta.env.VITE_MANUAL_TEST_TOKEN.substring(0, 15) + '...' : 'NULL'}</span>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">JWT:</span>
+                  {getEnvDetailed('VITE_MANUAL_TEST_TOKEN').source === 'runtime' && <span className="px-1 py-0.5 bg-purple-500/10 text-purple-500 rounded text-[8px] leading-none">(Runtime)</span>}
+                </div>
+                <span className="text-emerald-500">{getEnvDetailed('VITE_MANUAL_TEST_TOKEN').value ? getEnvDetailed('VITE_MANUAL_TEST_TOKEN').value!.substring(0, 15) + '...' : 'NULL'}</span>
               </div>
             </div>
           </div>
