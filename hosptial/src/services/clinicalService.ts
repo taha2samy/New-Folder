@@ -29,7 +29,14 @@ export const clinicalService = {
     try {
       const data = await graphqlRequest<{ getExamTypes: LabExam[] }>(query);
       return data.getExamTypes || [];
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message === 'MOCK_MODE') {
+        return [
+          { id: '1', code: 'CBC', description: 'صورة دم كاملة', procedure_type: 1 },
+          { id: '2', code: 'LIPID', description: 'تحليل دهون', procedure_type: 2 },
+          { id: '3', code: 'GLU', description: 'سكر دم صائم', procedure_type: 1 },
+        ];
+      }
       console.error('getExams error:', error);
       throw error;
     }
@@ -94,7 +101,14 @@ export const clinicalService = {
     try {
       const data = await graphqlRequest<{ getOperationTypes: SurgicalOperation[] }>(query);
       return data.getOperationTypes || [];
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message === 'MOCK_MODE') {
+        return [
+          { id: '1', code: 'APP', description: 'استئصال الزائدة الدودية', is_major: true },
+          { id: '2', code: 'CAT', description: 'سحب مياه بيضاء', is_major: false },
+          { id: '3', code: 'CABG', description: 'قلب مفتوح', is_major: true },
+        ];
+      }
       console.error('getOperations error:', error);
       throw error;
     }

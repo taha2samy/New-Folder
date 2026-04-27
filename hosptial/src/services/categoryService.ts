@@ -22,7 +22,14 @@ export const categoryService = {
     try {
       const data = await graphqlRequest<{ getDiseaseCategories: DiseaseCategory[] }>(query);
       return data.getDiseaseCategories || [];
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message === 'MOCK_MODE') {
+        return [
+          { id: '1', code: 'RESP', name: 'أمراض الجهاز التنفسي', count: 120 },
+          { id: '2', code: 'ENDO', name: 'أمراض الغدد الصماء', count: 85 },
+          { id: '3', code: 'CARD', name: 'أمراض القلب والأوعية الدموية', count: 210 },
+        ];
+      }
       console.error('getCategories error:', error);
       throw error;
     }

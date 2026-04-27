@@ -9,6 +9,7 @@ import { Plus } from 'lucide-react';
 import { Layout } from './components/Layout';
 import Dashboard from './components/Dashboard';
 import MasterDataHub from './components/MasterDataHub';
+import { DiagnosticOverlay } from './components/DiagnosticOverlay';
 import { ToastProvider } from './lib/toast';
 
 export default function App() {
@@ -145,6 +146,7 @@ export default function App() {
 
   return (
     <ToastProvider>
+      <DiagnosticOverlay />
       <Layout 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 

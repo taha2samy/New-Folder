@@ -26,7 +26,14 @@ export const supplierService = {
     try {
       const data = await graphqlRequest<{ getSuppliers: Supplier[] }>(query);
       return data.getSuppliers || [];
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message === 'MOCK_MODE') {
+        return [
+          { id: '1', name: 'الشركة الطبية المتقدمة', address: 'الرياض، العليا', contact_info: '+966 50 123 4567' },
+          { id: '2', name: 'توريدات الشفاء', address: 'جدة، الرويس', contact_info: 'info@alshifa.com' },
+          { id: '3', name: 'مؤسسة الصحة الأولى', address: 'الدمام', contact_info: '+966 13 888 8888' },
+        ];
+      }
       console.error('getSuppliers error:', error);
       throw error;
     }

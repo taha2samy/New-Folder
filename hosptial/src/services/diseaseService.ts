@@ -23,7 +23,14 @@ export const diseaseService = {
     try {
       const data = await graphqlRequest<{ getDiseases: Disease[] }>(query);
       return data.getDiseases || [];
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message === 'MOCK_MODE') {
+        return [
+          { id: '1', code: 'J01.90', description: 'التهاب الجيوب الأنفية الحاد', disease_type: 'تنفسي' },
+          { id: '2', code: 'E11.9', description: 'السكري من النوع الثاني', disease_type: 'غدد صماء' },
+          { id: '3', code: 'I10', description: 'ارتفاع ضغط الدم الأساسي', disease_type: 'قلب وأوعية دموية' },
+        ];
+      }
       console.error('getDiseases error:', error);
       throw error;
     }

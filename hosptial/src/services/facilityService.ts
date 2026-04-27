@@ -43,7 +43,14 @@ export const facilityService = {
     try {
       const data = await graphqlRequest<{ getWards: Ward[] }>(query);
       return data.getWards || [];
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message === 'MOCK_MODE') {
+        return [
+          { id: '1', code: 'W-01', name: 'جناح الباطنية رجال', is_opd: false, beds_count: 24 },
+          { id: '2', code: 'C-01', name: 'عيادة العيون', is_opd: true, beds_count: 0 },
+          { id: '3', code: 'W-02', name: 'جناح جراحة العظام', is_opd: false, beds_count: 16 },
+        ];
+      }
       console.error('getWards error:', error);
       throw error;
     }
