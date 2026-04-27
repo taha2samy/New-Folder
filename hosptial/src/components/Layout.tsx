@@ -99,13 +99,28 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
               <div className={`w-2 h-2 rounded-full ${getStatusColor()}`}></div>
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">حالة البيانات</span>
             </div>
-            <p className={`text-[10px] font-bold leading-relaxed ${
+            <p className={`text-[10px] font-bold leading-relaxed mb-2 ${
               apiStatus.status === 'online' ? 'text-emerald-600 dark:text-emerald-500' :
               apiStatus.status === 'connecting' ? 'text-amber-600 dark:text-amber-500' :
               'text-rose-600 dark:text-rose-500'
             }`}>
               {getStatusLabel()}
             </p>
+            
+            <div className="pt-2 border-t border-[var(--border-color)] flex flex-col gap-1 text-[8px] font-mono text-slate-500 break-all bg-black/5 dark:bg-white/5 p-2 rounded">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">VITE_USE_MOCK:</span>
+                <span className="text-blue-500">{import.meta.env.VITE_USE_MOCK || 'false'}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">URL:</span>
+                <span className="text-amber-500">{import.meta.env.VITE_GRAPH_API_URL || 'NOT SET'}</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">JWT:</span>
+                <span className="text-emerald-500">{import.meta.env.VITE_MANUAL_TEST_TOKEN ? import.meta.env.VITE_MANUAL_TEST_TOKEN.substring(0, 15) + '...' : 'NULL'}</span>
+              </div>
+            </div>
           </div>
           
           <button className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-slate-500 hover:text-medical-500 transition-all group">
