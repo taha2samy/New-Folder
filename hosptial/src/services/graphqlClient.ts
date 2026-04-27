@@ -7,7 +7,7 @@ const MANUAL_TEST_TOKEN = import.meta.env.VITE_MANUAL_TEST_TOKEN;
 class DiagnosticEmitter extends EventTarget {}
 export const diagnosticEvents = new DiagnosticEmitter();
 
-export function logDiagnostic(type: 'SYSTEM' | 'CONFIG' | 'AUTH' | 'NETWORK' | 'ERROR' | 'RETRY', message: string, details?: any) {
+export function logDiagnostic(type: 'SYSTEM' | 'CONFIG' | 'AUTH' | 'NETWORK' | 'ERROR' | 'RETRY' | 'MODE' | 'CHECK', message: string, details?: any) {
   const timestamp = new Date().toISOString().substring(11, 19);
   const logStr = `[${timestamp}] [${type}] ${message}`;
   
@@ -26,8 +26,19 @@ export function setForceMock(value: boolean) {
 export async function checkHealth(): Promise<{ status: 'online' | 'unreachable' | 'unauthorized' | 'not_found' | 'mock', message?: string, error?: any }> {
   logDiagnostic('SYSTEM', 'Checking Environment Variables...');
 
-  logDiagnostic('CONFIG', `VITE_GRAPH_API_URL detected as: "${import.meta.env.VITE_GRAPH_API_URL || 'NOT SET'}"`);
-  logDiagnostic('AUTH', `Manual Token detected: ${import.meta.env.VITE_MANUAL_TEST_TOKEN ? 'YES (Starts with ' + import.meta.env.VITE_MANUAL_TEST_TOKEN.substring(0,10) + '...)' : 'NO'}`);
+  const useMock = import.meta.env.VITE_USE_MOCK === 'true';
+  const apiUrl = import.meta.env.VITE_GRAPH_API_URL || 'NOT SET';
+  const hasToken = !!import.meta.env.VITE_MANUAL_TEST_TOKEN;
+
+  if (useMock) {
+    logDiagnostic('MODE', 'Mock-Data Mode Active (VITE_USE_MOCK=true)');
+    return { status: 'mock' };
+  } else {
+    logDiagnostic('MODE', 'Real-Data Mode Active (VITE_USE_MOCK=false)');
+  }
+
+  logDiagnostic('CHECK', `Pinging Aggregator: ${apiUrl}`);
+  logDiagnostic('AUTH', `Authorization Header: ${hasToken ? 'Present' : 'MISSING'}`);
 
   if (!import.meta.env.VITE_GRAPH_API_URL) {
     logDiagnostic('CONFIG', 'No API URL found, defaulting to MOCK mode.');
@@ -35,17 +46,6 @@ export async function checkHealth(): Promise<{ status: 'online' | 'unreachable' 
   }
 
   try {
-    logDiagnostic('NETWORK', 'Attempting POST request to endpoint for health check...', { 
-      url: import.meta.env.VITE_GRAPH_API_URL,
-      fetchConfig: {
-        method: 'POST',
-        mode: 'cors',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(import.meta.env.VITE_MANUAL_TEST_TOKEN ? { 'Authorization': `Bearer ${import.meta.env.VITE_MANUAL_TEST_TOKEN.substring(0, 5)}...` } : {})
-        }
-      }
-    });
     const response = await fetch(import.meta.env.VITE_GRAPH_API_URL, {
       method: 'POST',
       headers: {
@@ -55,27 +55,30 @@ export async function checkHealth(): Promise<{ status: 'online' | 'unreachable' 
       body: JSON.stringify({ query: '{ __typename }' })
     });
 
-    logDiagnostic('NETWORK', `Health check response received: ${response.status} ${response.statusText}`);
-
     if (response.status === 200) return { status: 'online' };
+    
+    let errorMsg = `HTTP Error ${response.status}`;
     if (response.status === 401 || response.status === 403) {
-      const errorMsg = '🚫 التوكن غير صالح';
-      logDiagnostic('ERROR', `Unauthorized: ${response.status}`);
+      errorMsg = '🚫 التوكن غير صالح';
+      logDiagnostic('ERROR', `Status: ${response.status} | Message: ${errorMsg}`);
       return { status: 'unauthorized', message: errorMsg };
     }
     if (response.status === 404) {
-      logDiagnostic('ERROR', 'Endpoint not found (404)');
-      return { status: 'not_found', message: '⚠️ الرابط غير صحيح (404)' };
+      errorMsg = '⚠️ الرابط غير صحيح (404)';
+      logDiagnostic('ERROR', `Status: ${response.status} | Message: ${errorMsg}`);
+      return { status: 'not_found', message: errorMsg };
     }
     
-    logDiagnostic('ERROR', `Server Error (${response.status})`);
-    return { status: 'unreachable', message: `⚠️ خطأ في الخادم (${response.status})` };
+    errorMsg = `⚠️ خطأ في الخادم (${response.status})`;
+    logDiagnostic('ERROR', `Status: ${response.status} | Message: ${errorMsg}`);
+    return { status: 'unreachable', message: errorMsg };
   } catch (error: any) {
-    logDiagnostic('ERROR', `Connection Failed: ${error.message || 'Unknown Network Error'}`, error);
+    const errorMsg = error.message || 'Unknown Network Error';
+    logDiagnostic('ERROR', `Status: Network | Message: ${errorMsg}`);
     
     // Check for specific CORS error string
     if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-      logDiagnostic('ERROR', '🚨 احتمال وجود مشكلة CORS - تأكد من إعدادات الـ Aggregator.');
+      logDiagnostic('ERROR', '[ALERT] CORS Policy mismatch detected. Check Aggregator allowed origins.');
     }
     
     return { status: 'unreachable', message: '⚠️ فشل الاتصال بالشبكة', error };
@@ -92,7 +95,8 @@ export async function graphqlRequest<T>(query: string, variables: Record<string,
   }
 
   try {
-    if (!GRAPH_API_URL || forceMock || forceMockOverride) {
+    const useMock = import.meta.env.VITE_USE_MOCK === 'true';
+    if (!GRAPH_API_URL || forceMock || forceMockOverride || useMock) {
       throw new Error('MOCK_MODE'); // Simple flag for upstream
     }
 
