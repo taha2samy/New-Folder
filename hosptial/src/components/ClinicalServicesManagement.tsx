@@ -10,7 +10,8 @@ import {
   Loader2,
   ListFilter,
   Activity,
-  Scissors
+  Scissors,
+  AlertCircle
 } from 'lucide-react';
 import { clinicalService, LabExam, SurgicalOperation } from '../services/clinicalService';
 import { useToast } from '../lib/toast';

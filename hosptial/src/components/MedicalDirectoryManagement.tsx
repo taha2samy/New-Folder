@@ -10,7 +10,8 @@ import {
   Loader2,
   Activity,
   Layers,
-  Stethoscope
+  Stethoscope,
+  AlertCircle
 } from 'lucide-react';
 import { diseaseService, Disease } from '../services/diseaseService';
 import { categoryService, DiseaseCategory } from '../services/categoryService';

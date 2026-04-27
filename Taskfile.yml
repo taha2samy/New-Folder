@@ -53,11 +53,12 @@ tasks:
   all:migrate:
     desc: Run standard migrations across all services sequentially
     cmds:
-      - pipenv run --cwd ./hospital-root/master_data_service alembic upgrade head
-      - pipenv run --cwd ./hospital-root/patient_service alembic upgrade head
-      - pipenv run --cwd ./hospital-root/clinical_service alembic upgrade head
-      - pipenv run --cwd ./hospital-root/pharmacy_service alembic upgrade head
-      - pipenv run --cwd ./hospital-root/laboratory_service alembic upgrade head
+      - task: master_data:migrate
+      - task: patient:migrate
+      - task: clinical:migrate
+      - task: pharmacy:migrate
+      - task: laboratory:migrate
+      - task: billing:migrate
 
   just:
     desc: Iterates through services and runs external pack build commands

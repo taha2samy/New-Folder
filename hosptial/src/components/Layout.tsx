@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Bell, Moon, Sun, LayoutDashboard, Users, Stethoscope, Pill, Beaker, CreditCard, Settings, Building2 } from 'lucide-react';
+import { Search, Bell, Moon, Sun, LayoutDashboard, Users, Stethoscope, Pill, Beaker, CreditCard, Settings, Building2, AlertCircle, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { NAV_ITEMS } from '../constants';
+import { checkHealth } from '../services/graphqlClient';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,6 +13,40 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, isDarkMode, toggleTheme }) => {
+  const [apiStatus, setApiStatus] = useState<{ status: string, message?: string }>({ status: 'connecting' });
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      const result = await checkHealth();
+      setApiStatus(result);
+    };
+    
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 30000); // Check every 30s
+    return () => clearInterval(interval);
+  }, []);
+
+  const getStatusColor = () => {
+    switch (apiStatus.status) {
+      case 'online': return 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]';
+      case 'mock': return 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]';
+      case 'connecting': return 'bg-amber-500 animate-pulse';
+      case 'unauthorized': return 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)] shadow-rose-500/20';
+      default: return 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]';
+    }
+  };
+
+  const getStatusLabel = () => {
+    switch (apiStatus.status) {
+      case 'online': return 'متصل بـ Live API';
+      case 'mock': return 'بيانات تجريبية (Mock Mode)';
+      case 'connecting': return 'جاري التحليل...';
+      case 'unauthorized': return apiStatus.message || '🚫 التوكن غير صالح';
+      case 'not_found': return apiStatus.message || '⚠️ الرابط غير صحيح (404)';
+      default: return apiStatus.message || 'غير قادر على الوصول';
+    }
+  };
+
   return (
     <div className="flex h-screen w-full bg-[var(--bg-main)] overflow-hidden font-sans" dir="rtl">
       {/* Right Sidebar - Fixed to Right in RTL */}
@@ -53,13 +88,23 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
         </nav>
 
         <div className="mt-auto px-4 w-full space-y-4 pb-4">
-          <div className="px-4 py-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-[var(--border-color)]">
+          <div className={`px-4 py-3 rounded-xl transition-all duration-500 ${
+            apiStatus.status === 'online' 
+              ? 'bg-emerald-500/5 border-emerald-500/10' 
+              : apiStatus.status === 'connecting'
+                ? 'bg-amber-500/5 border-amber-500/10'
+                : 'bg-rose-500/5 border-rose-500/10'
+          } border`}>
             <div className="flex items-center gap-2 mb-1">
-              <div className={`w-2 h-2 rounded-full ${import.meta.env.VITE_GRAPH_API_URL ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]'}`}></div>
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">حالة الاتصال</span>
+              <div className={`w-2 h-2 rounded-full ${getStatusColor()}`}></div>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">حالة البيانات</span>
             </div>
-            <p className="text-[9px] text-slate-400 font-mono truncate">
-              {import.meta.env.VITE_GRAPH_API_URL ? 'متصل بـ GraphQL Aggregator' : 'بانتظار إعداد API URL'}
+            <p className={`text-[10px] font-bold leading-relaxed ${
+              apiStatus.status === 'online' ? 'text-emerald-600 dark:text-emerald-500' :
+              apiStatus.status === 'connecting' ? 'text-amber-600 dark:text-amber-500' :
+              'text-rose-600 dark:text-rose-500'
+            }`}>
+              {getStatusLabel()}
             </p>
           </div>
           

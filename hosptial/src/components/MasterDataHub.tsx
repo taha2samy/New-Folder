@@ -10,7 +10,10 @@ import {
   ExternalLink,
   ClipboardList,
   Plus,
-  Loader2
+  Loader2,
+  CloudOff,
+  RefreshCcw,
+  AlertCircle
 } from 'lucide-react';
 import SupplierManagement from './SupplierManagement';
 import MedicalDirectoryManagement from './MedicalDirectoryManagement';
@@ -43,13 +46,20 @@ const MasterDataHub: React.FC = () => {
   const [loadingFacilities, setLoadingFacilities] = useState(true);
   const { showToast } = useToast();
 
+  const [errorSuppliers, setErrorSuppliers] = useState<string | null>(null);
+  const [errorDiseases, setErrorDiseases] = useState<string | null>(null);
+  const [errorClinical, setErrorClinical] = useState<string | null>(null);
+  const [errorFacilities, setErrorFacilities] = useState<string | null>(null);
+  const [errorCategories, setErrorCategories] = useState<string | null>(null);
+
   const fetchSuppliers = async () => {
     setLoadingSuppliers(true);
+    setErrorSuppliers(null);
     try {
       const data = await supplierService.getSuppliers();
-      setSuppliers(data.slice(0, 3)); // Only show top 3 in hub preview
-    } catch (err) {
-      console.error(err);
+      setSuppliers(data.slice(0, 3));
+    } catch (err: any) {
+      setErrorSuppliers(err.message || 'فشل الاتصال');
     } finally {
       setLoadingSuppliers(false);
     }
@@ -57,11 +67,12 @@ const MasterDataHub: React.FC = () => {
 
   const fetchDiseases = async () => {
     setLoadingDiseases(true);
+    setErrorDiseases(null);
     try {
       const data = await diseaseService.getDiseases();
-      setDiseases(data.slice(0, 4)); // Only show top 4 in hub preview
-    } catch (err) {
-      console.error(err);
+      setDiseases(data.slice(0, 4));
+    } catch (err: any) {
+      setErrorDiseases(err.message || 'فشل الاتصال');
     } finally {
       setLoadingDiseases(false);
     }
@@ -69,11 +80,12 @@ const MasterDataHub: React.FC = () => {
 
   const fetchCategories = async () => {
     setLoadingCategories(true);
+    setErrorCategories(null);
     try {
       const data = await categoryService.getCategories();
       setCategories(data.slice(0, 4));
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      setErrorCategories(err.message || 'فشل الاتصال');
     } finally {
       setLoadingCategories(false);
     }
@@ -81,6 +93,7 @@ const MasterDataHub: React.FC = () => {
 
   const fetchClinicalData = async () => {
     setLoadingClinical(true);
+    setErrorClinical(null);
     try {
       const [examData, opData] = await Promise.all([
         clinicalService.getExams(),
@@ -88,8 +101,8 @@ const MasterDataHub: React.FC = () => {
       ]);
       setExams(examData.slice(0, 3));
       setOperations(opData.slice(0, 3));
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      setErrorClinical(err.message || 'فشل الاتصال');
     } finally {
       setLoadingClinical(false);
     }
@@ -97,11 +110,12 @@ const MasterDataHub: React.FC = () => {
 
   const fetchFacilities = async () => {
     setLoadingFacilities(true);
+    setErrorFacilities(null);
     try {
       const data = await facilityService.getWards();
       setWards(data.slice(0, 4));
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      setErrorFacilities(err.message || 'فشل الاتصال');
     } finally {
       setLoadingFacilities(false);
     }
@@ -114,6 +128,88 @@ const MasterDataHub: React.FC = () => {
     fetchClinicalData();
     fetchFacilities();
   }, [activeView]);
+
+  const SkeletonRect = ({ className }: { className: string }) => (
+    <div className={`animate-pulse bg-slate-200 dark:bg-white/10 rounded-lg ${className}`} />
+  );
+
+  const WardSkeleton = () => (
+    <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-transparent space-y-3">
+      <div className="flex justify-between items-start">
+        <div className="space-y-2 flex-1">
+          <SkeletonRect className="h-4 w-1/2" />
+          <SkeletonRect className="h-3 w-1/4" />
+        </div>
+        <div className="space-y-2">
+          <SkeletonRect className="h-2 w-8" />
+          <SkeletonRect className="h-4 w-12" />
+        </div>
+      </div>
+    </div>
+  );
+
+  const DiseaseSkeleton = () => (
+    <div className="flex items-center gap-4 p-3 border border-transparent">
+      <SkeletonRect className="w-12 h-6 rounded-md" />
+      <div className="flex-1 space-y-2">
+        <SkeletonRect className="h-4 w-3/4" />
+        <SkeletonRect className="h-2 w-1/4" />
+      </div>
+    </div>
+  );
+
+  const SupplierSkeleton = () => (
+    <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-transparent">
+      <SkeletonRect className="w-10 h-10 rounded-full" />
+      <div className="flex-1 space-y-2">
+        <SkeletonRect className="h-4 w-1/3" />
+        <SkeletonRect className="h-3 w-1/2" />
+      </div>
+    </div>
+  );
+
+  const ErrorDisplay = ({ message, onRetry }: { message: string, onRetry: () => void }) => {
+    const isNetworkError = message === 'NETWORK_FAILURE';
+    const isMockError = message === 'MOCK_MODE';
+    const isHttp404 = message === 'HTTP_404';
+    const isAuthError = message === 'HTTP_401' || message === 'HTTP_403';
+
+    const getErrorMessage = () => {
+      if (isMockError) return 'بيانات تجريبية غير متوفرة';
+      if (isNetworkError) return 'تعذر الاتصال بالخادم';
+      if (isHttp404) return 'الرابط غير صحيح (404)';
+      if (isAuthError) return 'التوكن غير صالح';
+      return 'نعتذر، تعذر جلب البيانات حالياً';
+    };
+
+    return (
+      <div className="flex flex-col items-center justify-center p-8 bg-rose-500/5 rounded-2xl border border-rose-500/10 text-center space-y-3 min-h-[200px] group/error">
+        <div className="w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center mb-1 group-hover/error:scale-110 transition-transform duration-300">
+           <CloudOff className="w-6 h-6 text-rose-500/60" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-bold text-rose-600/90">{getErrorMessage()}</p>
+          <p className="text-[10px] text-rose-400 font-medium">يرجى المحاولة مرة أخرى</p>
+        </div>
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            onRetry();
+          }}
+          className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 rounded-lg text-xs font-bold transition-all active:scale-95"
+        >
+          <RefreshCcw className="w-3.5 h-3.5" />
+          <span>إعادة المحاولة</span>
+        </button>
+      </div>
+    );
+  };
+
+  const EmptyDisplay = () => (
+    <div className="flex items-center justify-center p-8 text-slate-400 text-xs font-bold">
+      لا توجد بيانات مسجلة
+    </div>
+  );
 
   const goToSuppliers = (state?: { open: boolean, mode: 'add' | 'edit', supplier?: Supplier }) => {
     setInitialSupplierState(state);
@@ -220,10 +316,16 @@ const MasterDataHub: React.FC = () => {
 
              <div className="space-y-3">
                 {loadingFacilities ? (
-                  <div className="flex items-center justify-center h-40">
-                    <Loader2 className="w-6 h-6 animate-spin text-medical-500" />
+                  <div className="space-y-3">
+                    <WardSkeleton />
+                    <WardSkeleton />
+                    <WardSkeleton />
                   </div>
-                ) : (wards || []).map((ward, i) => (
+                ) : errorFacilities ? (
+                  <ErrorDisplay message={errorFacilities} onRetry={fetchFacilities} />
+                ) : wards.length === 0 ? (
+                  <EmptyDisplay />
+                ) : wards.map((ward, i) => (
                   <div 
                     key={i} 
                     onClick={() => goToFacilities()}
@@ -294,10 +396,14 @@ const MasterDataHub: React.FC = () => {
              
              {medicalDirSubView === 'diseases' ? (
                 loadingDiseases ? (
-                  <div className="flex items-center justify-center h-40">
-                    <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
+                  <div className="space-y-3">
+                    {Array(4).fill(0).map((_, i) => <DiseaseSkeleton key={i} />)}
                   </div>
-                ) : (diseases || []).map((code, i) => (
+                ) : errorDiseases ? (
+                  <ErrorDisplay message={errorDiseases} onRetry={fetchDiseases} />
+                ) : diseases.length === 0 ? (
+                  <EmptyDisplay />
+                ) : diseases.map((code, i) => (
                   <div 
                     key={i} 
                     onClick={() => goToMedicalDir({ open: true, mode: 'edit', disease: code })}
@@ -315,10 +421,14 @@ const MasterDataHub: React.FC = () => {
                 ))
              ) : (
                 loadingCategories ? (
-                  <div className="flex items-center justify-center h-40">
-                    <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
+                  <div className="space-y-3">
+                    {Array(4).fill(0).map((_, i) => <DiseaseSkeleton key={i} />)}
                   </div>
-                ) : (categories || []).map((cat, i) => (
+                ) : errorCategories ? (
+                  <ErrorDisplay message={errorCategories} onRetry={fetchCategories} />
+                ) : categories.length === 0 ? (
+                  <EmptyDisplay />
+                ) : categories.map((cat, i) => (
                   <div 
                     key={i} 
                     onClick={() => goToMedicalDir({ open: true, mode: 'edit', category: cat })}
@@ -377,10 +487,14 @@ const MasterDataHub: React.FC = () => {
              
              {clinicalSubView === 'exams' ? (
                 loadingClinical ? (
-                  <div className="flex items-center justify-center h-40">
-                    <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+                  <div className="space-y-3">
+                     {Array(3).fill(0).map((_, i) => <DiseaseSkeleton key={i} />)}
                   </div>
-                ) : (exams || []).map((exam, i) => (
+                ) : errorClinical ? (
+                  <ErrorDisplay message={errorClinical} onRetry={fetchClinicalData} />
+                ) : exams.length === 0 ? (
+                  <EmptyDisplay />
+                ) : exams.map((exam, i) => (
                   <div 
                     key={i} 
                     onClick={() => goToClinicalServices('exams')}
@@ -396,10 +510,14 @@ const MasterDataHub: React.FC = () => {
                 ))
              ) : (
                 loadingClinical ? (
-                  <div className="flex items-center justify-center h-40">
-                    <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+                  <div className="space-y-3">
+                     {Array(3).fill(0).map((_, i) => <DiseaseSkeleton key={i} />)}
                   </div>
-                ) : (operations || []).map((op, i) => (
+                ) : errorClinical ? (
+                  <ErrorDisplay message={errorClinical} onRetry={fetchClinicalData} />
+                ) : operations.length === 0 ? (
+                  <EmptyDisplay />
+                ) : operations.map((op, i) => (
                   <div 
                     key={i} 
                     onClick={() => goToClinicalServices('operations')}
@@ -442,9 +560,15 @@ const MasterDataHub: React.FC = () => {
 
           <div className="space-y-4 flex-1">
              {loadingSuppliers ? (
-                <div className="flex items-center justify-center h-40">
-                  <Loader2 className="w-6 h-6 animate-spin text-medical-500" />
+                <div className="space-y-3">
+                  <SupplierSkeleton />
+                  <SupplierSkeleton />
+                  <SupplierSkeleton />
                 </div>
+             ) : errorSuppliers ? (
+               <ErrorDisplay message={errorSuppliers} onRetry={fetchSuppliers} />
+             ) : (suppliers || []).length === 0 ? (
+               <EmptyDisplay />
              ) : (suppliers || []).map((supplier, i) => (
                <div 
                 key={i} 

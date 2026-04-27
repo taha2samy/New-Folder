@@ -10,7 +10,8 @@ import {
   Filter,
   Trash2,
   Edit3,
-  Loader2
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { supplierService, Supplier } from '../services/supplierService';
 import { useToast } from '../lib/toast';
