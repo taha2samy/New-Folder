@@ -88,6 +88,7 @@ export const DiagnosticOverlay: React.FC = () => {
       case 'RETRY': return 'text-emerald-400 font-bold';
       case 'MODE': return 'text-fuchsia-400 font-bold';
       case 'CHECK': return 'text-blue-400';
+      case 'INFO': return 'text-slate-400';
       default: return 'text-emerald-500';
     }
   };

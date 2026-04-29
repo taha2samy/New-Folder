@@ -23,7 +23,7 @@ const MANUAL_TEST_TOKEN = getEnv('VITE_MANUAL_TEST_TOKEN');
 class DiagnosticEmitter extends EventTarget {}
 export const diagnosticEvents = new DiagnosticEmitter();
 
-export function logDiagnostic(type: 'SYSTEM' | 'CONFIG' | 'AUTH' | 'NETWORK' | 'ERROR' | 'RETRY' | 'MODE' | 'CHECK', message: string, details?: any) {
+export function logDiagnostic(type: 'SYSTEM' | 'CONFIG' | 'AUTH' | 'NETWORK' | 'ERROR' | 'RETRY' | 'MODE' | 'CHECK' | 'INFO', message: string, details?: any) {
   const timestamp = new Date().toISOString().substring(11, 19);
   const logStr = `[${timestamp}] [${type}] ${message}`;
   
@@ -61,9 +61,19 @@ export async function checkHealth(): Promise<{ status: 'online' | 'unreachable' 
     return { status: 'mock' };
   }
 
+  logDiagnostic('INFO', `Current Browser Origin: ${window.location.origin}`);
+  logDiagnostic('INFO', `Target API URL: ${apiUrl}`);
+
+  if (window.location.protocol === 'https:' && apiUrl.startsWith('http://')) {
+    logDiagnostic('ERROR', '⚠️ MIXED CONTENT DETECTED: Browser will block HTTP requests from an HTTPS site. Please use an HTTPS tunnel (e.g., Ngrok) for your local backend.');
+  }
+
   try {
     const response = await fetch(getEnv('VITE_GRAPH_API_URL') as string, {
       method: 'POST',
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-cache',
       headers: {
         'Content-Type': 'application/json',
         ...(getEnv('VITE_MANUAL_TEST_TOKEN') ? { 'Authorization': `Bearer ${getEnv('VITE_MANUAL_TEST_TOKEN')}` } : {})
@@ -95,6 +105,9 @@ export async function checkHealth(): Promise<{ status: 'online' | 'unreachable' 
     // Check for specific CORS error string
     if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
       logDiagnostic('ERROR', '[ALERT] CORS Policy mismatch detected. Check Aggregator allowed origins.');
+      if (apiUrl.includes('localhost') || apiUrl.includes('127.0.0.1')) {
+        logDiagnostic('ERROR', '🚨 Localhost unreachable from Cloud. Verify if you are using the public URL provided by your tunnel.');
+      }
     }
     
     return { status: 'unreachable', message: '⚠️ فشل الاتصال بالشبكة', error };
@@ -125,12 +138,24 @@ export async function graphqlRequest<T>(query: string, variables: Record<string,
       fetchConfig: {
         method: 'POST',
         mode: 'cors',
+        credentials: 'omit',
+        cache: 'no-cache',
         headers
       }
     });
+
+    logDiagnostic('INFO', `Current Browser Origin: ${window.location.origin}`);
+    logDiagnostic('INFO', `Target API URL: ${apiUrl}`);
+
+    if (window.location.protocol === 'https:' && apiUrl.startsWith('http://')) {
+      logDiagnostic('ERROR', '⚠️ MIXED CONTENT DETECTED: Browser will block HTTP requests from an HTTPS site. Please use an HTTPS tunnel (e.g., Ngrok) for your local backend.');
+    }
     
     const response = await fetch(apiUrl, {
       method: 'POST',
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-cache',
       headers,
       body: JSON.stringify({
         query,
@@ -164,6 +189,9 @@ export async function graphqlRequest<T>(query: string, variables: Record<string,
     
     if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
       logDiagnostic('ERROR', '🚨 احتمال وجود مشكلة CORS في GraphQL Request.');
+      if (apiUrl.includes('localhost') || apiUrl.includes('127.0.0.1')) {
+        logDiagnostic('ERROR', '🚨 Localhost unreachable from Cloud. Verify if you are using the public URL provided by your tunnel.');
+      }
     } else if (!['INVALID_CONTENT_TYPE', 'GRAPHQL_ERROR'].includes(error.message) && !error.message.startsWith('HTTP_')) {
        logDiagnostic('ERROR', `GraphQL Network failure: ${error.message}`);
     }
